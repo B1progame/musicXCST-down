@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "musicxcst-downloader"
+version = "0.1.0"
+description = "A private, modern desktop downloader for legally permitted video and music."
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{ name = "B1progame" }]
+dependencies = [
+  "pywebview>=5.4",
+  "yt-dlp>=2026.1.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pyinstaller>=6.11"]
+
+[project.scripts]
+musicxcst-downloader = "musicxcst_downloader.app:main"
+
+[tool.setuptools.package-data]
+musicxcst_downloader = ["frontend/*", "frontend/assets/*"]
+

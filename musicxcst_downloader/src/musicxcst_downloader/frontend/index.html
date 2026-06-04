@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MusicXCST Downloader</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="firstRun" class="notice-backdrop hidden">
+      <section class="notice-panel">
+        <div class="brand-mark small">
+          <span class="play"></span>
+          <span class="arrow"></span>
+        </div>
+        <h1>Before You Download</h1>
+        <p id="legalNotice">Use this tool only for videos/music you own, have permission to use, or are legally allowed to download.</p>
+        <button id="acceptNotice" class="primary wide">I Understand</button>
+      </section>
+    </div>
+
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">
+            <span class="play"></span>
+            <span class="arrow"></span>
+          </div>
+          <div>
+            <strong>MusicXCST</strong>
+            <span>Downloader</span>
+          </div>
+        </div>
+        <nav>
+          <button class="nav-item active" data-page="download">Download</button>
+          <button class="nav-item" data-page="history">History</button>
+          <button class="nav-item" data-page="settings">Settings</button>
+          <button class="nav-item" data-page="about">About</button>
+        </nav>
+        <div class="side-footer">
+          <span class="pulse"></span>
+          <span id="ffmpegMini">Checking FFmpeg</span>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="topbar">
+          <div>
+            <h1>MusicXCST Downloader</h1>
+            <p>Fast, clean, modern video and music downloader.</p>
+          </div>
+          <button id="openCurrentFolder" class="ghost">Open Folder</button>
+        </header>
+
+        <section id="page-download" class="page active">
+          <div class="grid two">
+            <section class="panel workflow-panel">
+              <div class="panel-heading">
+                <h2>Download</h2>
+                <span class="accent-line"></span>
+              </div>
+              <label class="field full">
+                <span>Video or music link</span>
+                <div class="inline-field">
+                  <input id="urlInput" type="url" placeholder="https://..." autocomplete="off" />
+                  <button id="analyzeBtn" class="secondary">Analyze Link</button>
+                </div>
+              </label>
+
+              <div class="row">
+                <label class="field">
+                  <span>Format</span>
+                  <select id="formatSelect">
+                    <option value="mp4">MP4 video</option>
+                    <option value="webm">WebM video</option>
+                    <option value="mp3">MP3 audio</option>
+                    <option value="ogg">OGG audio</option>
+                    <option value="wav">WAV audio</option>
+                    <option value="flac">FLAC audio</option>
+                    <option value="m4a">M4A/AAC audio</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Quality</span>
+                  <select id="qualitySelect">
+                    <option value="best">Best available</option>
+                    <option value="1080">1080p</option>
+                    <option value="720">720p</option>
+                    <option value="480">480p</option>
+                    <option value="audio-best">Audio only best</option>
+                    <option value="audio-small">Audio small file</option>
+                  </select>
+                </label>
+              </div>
+
+              <label class="field full">
+                <span>Output folder</span>
+                <div class="inline-field">
+                  <input id="folderInput" type="text" />
+                  <button id="folderBtn" class="icon-button" title="Choose output folder">...</button>
+                </div>
+              </label>
+
+              <label class="field full">
+                <span>Output filename</span>
+                <input id="filenameInput" type="text" placeholder="download.mp4" />
+              </label>
+
+              <label class="checkline">
+                <input id="legalCheck" type="checkbox" />
+                <span>I confirm I have the right to download this content.</span>
+              </label>
+
+              <div class="actions">
+                <button id="downloadBtn" class="primary">Download</button>
+                <button id="cancelBtn" class="danger ghost">Cancel</button>
+              </div>
+
+              <div class="progress-wrap">
+                <div class="progress-meta">
+                  <span id="statusText">Ready.</span>
+                  <span id="speedEta">--</span>
+                </div>
+                <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+              </div>
+
+              <div class="result-row">
+                <input id="outputPath" readonly placeholder="Final output path will appear here" />
+                <button id="copyPathBtn" class="ghost">Copy Path</button>
+              </div>
+            </section>
+
+            <aside class="panel analysis-panel">
+              <div class="panel-heading">
+                <h2>Analysis</h2>
+                <span class="accent-line red"></span>
+              </div>
+              <div id="thumb" class="thumbnail empty">No thumbnail</div>
+              <dl class="meta">
+                <div><dt>Title</dt><dd id="metaTitle">--</dd></div>
+                <div><dt>Uploader</dt><dd id="metaUploader">--</dd></div>
+                <div><dt>Duration</dt><dd id="metaDuration">--</dd></div>
+                <div><dt>Best video</dt><dd id="metaVideo">--</dd></div>
+                <div><dt>Best audio</dt><dd id="metaAudio">--</dd></div>
+                <div><dt>Audio details</dt><dd id="metaAudioDetails">--</dd></div>
+              </dl>
+              <div id="longWarning" class="warning hidden">This item is long. Downloads and conversion may take a while.</div>
+              <div class="formats-box">
+                <h3>Available formats</h3>
+                <div id="formatsList" class="format-list">Analyze a link to view formats.</div>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section id="page-history" class="page">
+          <section class="panel">
+            <div class="panel-heading">
+              <h2>History</h2>
+              <button id="clearHistoryBtn" class="ghost danger">Clear History</button>
+            </div>
+            <div id="historyList" class="history-list"></div>
+          </section>
+        </section>
+
+        <section id="page-settings" class="page">
+          <section class="panel settings-grid">
+            <div class="panel-heading full">
+              <h2>Settings</h2>
+              <button id="resetSettingsBtn" class="ghost danger">Reset Settings</button>
+            </div>
+            <label class="field"><span>Default output folder</span><input id="setOutput" /></label>
+            <label class="field"><span>Default format</span><select id="setFormat"></select></label>
+            <label class="field"><span>Default quality</span><select id="setQuality"></select></label>
+            <label class="field"><span>Theme accent color</span><input id="setAccent" type="color" /></label>
+            <label class="field"><span>FFmpeg mode</span><select id="setFfmpegMode"><option value="system">system</option><option value="custom">custom path</option><option value="managed">managed</option></select></label>
+            <label class="field"><span>Custom FFmpeg path</span><div class="inline-field"><input id="setFfmpegPath" /><button id="selectFfmpegBtn" class="icon-button">...</button></div></label>
+            <label class="field"><span>Max duration warning (minutes)</span><input id="setMaxDuration" type="number" min="1" /></label>
+            <label class="field"><span>Logging level</span><select id="setLogging"><option>INFO</option><option>DEBUG</option><option>WARNING</option><option>ERROR</option></select></label>
+            <label class="toggle"><input id="setOpenAfter" type="checkbox" /><span>Open folder after download</span></label>
+            <label class="toggle"><input id="setKeepTemp" type="checkbox" /><span>Keep temporary original file</span></label>
+            <div class="ffmpeg-card">
+              <h3>FFmpeg Setup</h3>
+              <p>FFmpeg and ffprobe are needed for merging, conversion, and metadata probing. Use system PATH or choose a local executable.</p>
+              <button id="testFfmpegBtn" class="secondary">Test FFmpeg</button>
+              <pre id="ffmpegStatus">Not tested</pre>
+            </div>
+          </section>
+        </section>
+
+        <section id="page-about" class="page">
+          <section class="panel about">
+            <div class="brand-mark about-mark"><span class="play"></span><span class="arrow"></span></div>
+            <h2>MusicXCST Downloader</h2>
+            <p class="lead">Author: B1progame</p>
+            <p>GitHub: <a href="https://github.com/B1progame/musicXCST">https://github.com/B1progame/musicXCST</a></p>
+            <h3>Usage Notice</h3>
+            <p>Only download content you own, have permission to use, or are legally allowed to download.</p>
+            <h3>Disclaimer</h3>
+            <p>This tool is not affiliated with YouTube, Google, Mojang, Microsoft, Dolby, Adobe, or any video platform.</p>
+            <h3>License Area</h3>
+            <p>Private distribution tool. Add your chosen license text before public release.</p>
+            <h3>Third-party Notices</h3>
+            <p>Uses pywebview, yt-dlp, FFmpeg/ffprobe, PyInstaller, and optional Inno Setup packaging.</p>
+          </section>
+        </section>
+      </main>
+    </div>
+    <script src="./app.js"></script>
+  </body>
+</html>
+
