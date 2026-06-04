@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import re
 import threading
+import time
 from pathlib import Path
 from typing import Callable
 from urllib.parse import urlparse
@@ -168,13 +169,22 @@ class DownloadWorker:
         if not ffmpeg_info["ready"]:
             raise RuntimeError("FFmpeg and ffprobe are required for reliable downloads and conversions.")
 
+        last_progress_emit = 0.0
+        last_percent = -1.0
+
         def hook(event: dict) -> None:
+            nonlocal last_progress_emit, last_percent
             if self._cancel.is_set():
                 raise RuntimeError("Download cancelled.")
             if event.get("status") == "downloading":
                 total = event.get("total_bytes") or event.get("total_bytes_estimate") or 0
                 downloaded = event.get("downloaded_bytes") or 0
                 percent = (downloaded / total * 100) if total else 0
+                now = time.monotonic()
+                if now - last_progress_emit < 0.25 and abs(percent - last_percent) < 1:
+                    return
+                last_progress_emit = now
+                last_percent = percent
                 self.progress(
                     {
                         "type": "progress",

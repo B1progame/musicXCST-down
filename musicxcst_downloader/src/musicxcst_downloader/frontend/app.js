@@ -6,9 +6,12 @@ const state = {
   lastOutputPath: "",
   analyzing: false,
   downloading: false,
+  progressFrame: 0,
+  pendingProgress: null,
 };
 
 const $ = (id) => document.getElementById(id);
+const elements = {};
 
 const formatOptions = [
   ["mp4", "MP4 video"],
@@ -30,12 +33,18 @@ const qualityOptions = [
 ];
 
 function setStatus(text, detail = "--") {
-  $("statusText").textContent = text;
-  $("speedEta").textContent = detail;
+  elements.statusText.textContent = text;
+  elements.speedEta.textContent = detail;
 }
 
 function setProgress(percent) {
-  $("progressBar").style.width = `${Math.max(0, Math.min(100, Number(percent) || 0))}%`;
+  const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
+  state.pendingProgress = safePercent;
+  if (state.progressFrame) return;
+  state.progressFrame = requestAnimationFrame(() => {
+    elements.progressBar.style.width = `${state.pendingProgress}%`;
+    state.progressFrame = 0;
+  });
 }
 
 function extensionForFormat() {
@@ -61,7 +70,7 @@ function renderAnalysis(data) {
   $("longWarning").classList.toggle("hidden", !data.long_warning);
   $("thumb").classList.toggle("empty", !data.thumbnail);
   $("thumb").innerHTML = data.thumbnail ? `<img src="${data.thumbnail}" alt="">` : "No thumbnail";
-  $("formatsList").innerHTML = (data.available_formats || []).slice(0, 40).map((f) => {
+  $("formatsList").innerHTML = (data.available_formats || []).slice(0, 32).map((f) => {
     const rate = f.tbr ? `${Math.round(f.tbr)}k` : "";
     return `<div>${f.format_id || "--"} | ${f.ext || "--"} | ${f.resolution || "--"} | ${f.vcodec || "no video"} | ${f.acodec || "no audio"} ${rate}</div>`;
   }).join("") || "No formats returned.";
@@ -77,9 +86,9 @@ function renderHistory(items) {
         <span>${escapeHtml(item.output_path || "")}</span>
       </div>
       <div class="history-actions">
-        <button class="ghost" onclick="openHistory(${index})">Open</button>
-        <button class="ghost" onclick="copyText('${escapeAttr(item.output_path || "")}')">Copy</button>
-        <button class="ghost danger" onclick="removeHistory(${index})">Remove</button>
+        <button class="ghost" data-history-action="open" data-history-index="${index}">Open</button>
+        <button class="ghost" data-history-action="copy" data-history-index="${index}">Copy</button>
+        <button class="ghost danger" data-history-action="remove" data-history-index="${index}">Remove</button>
       </div>
     </article>
   `).join("") : `<p class="lead">No downloads yet.</p>`;
@@ -87,10 +96,6 @@ function renderHistory(items) {
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char]));
-}
-
-function escapeAttr(value) {
-  return escapeHtml(value).replace(/\\/g, "\\\\");
 }
 
 async function copyText(text) {
@@ -165,7 +170,7 @@ window.MusicXCST = {
       }
     }
     if (event.type === "status") setStatus(event.status);
-    if (event.type === "progress") {
+  if (event.type === "progress") {
       state.downloading = true;
       setProgress(event.percent);
       setStatus(event.status || "Downloading...", [event.speed, event.eta && `ETA ${event.eta}`].filter(Boolean).join(" / ") || "--");
@@ -201,6 +206,16 @@ function renderFfmpeg(info) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  [
+    "statusText",
+    "speedEta",
+    "progressBar",
+    "historyList",
+    "githubLink",
+  ].forEach((id) => {
+    elements[id] = $(id);
+  });
+
   document.querySelectorAll(".nav-item").forEach((button) => {
     button.addEventListener("click", () => {
       document.querySelectorAll(".nav-item").forEach((item) => item.classList.remove("active"));
@@ -259,6 +274,21 @@ document.addEventListener("DOMContentLoaded", () => {
   $("copyPathBtn").addEventListener("click", () => copyText($("outputPath").value));
   $("openCurrentFolder").addEventListener("click", () => api().open_folder($("outputPath").value || $("folderInput").value));
   $("clearHistoryBtn").addEventListener("click", async () => renderHistory(await api().clear_history()));
+  elements.historyList.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-history-action]");
+    if (!button) return;
+    const index = Number(button.dataset.historyIndex);
+    const item = state.history[index];
+    if (!item) return;
+    if (button.dataset.historyAction === "open") await api().open_folder(item.output_path);
+    if (button.dataset.historyAction === "copy") await copyText(item.output_path);
+    if (button.dataset.historyAction === "remove") renderHistory(await api().remove_history(index));
+  });
+  elements.githubLink.addEventListener("click", async (event) => {
+    event.preventDefault();
+    const result = await api().open_external_url(event.currentTarget.dataset.externalUrl);
+    if (!result.ok) setStatus(`Could not open link: ${result.error}`);
+  });
 
   ["setOutput", "setFormat", "setQuality", "setAccent", "setFfmpegMode", "setFfmpegPath", "setMaxDuration", "setLogging"].forEach((id) => {
     $(id).addEventListener("change", () => saveSettingsPatch(collectSettingsPatch()));

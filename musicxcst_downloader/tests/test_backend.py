@@ -7,6 +7,7 @@ from musicxcst_downloader.backend.downloader import (
     validate_url,
 )
 from musicxcst_downloader.backend.ffmpeg import probe
+from musicxcst_downloader.backend.external import is_safe_external_url, open_external_url
 from musicxcst_downloader.backend.history import HistoryItem, HistoryStore
 from musicxcst_downloader.backend.legal import can_download
 from musicxcst_downloader.backend.settings import SettingsStore
@@ -59,3 +60,12 @@ def test_format_selector_quality():
     assert "height<=720" in build_format_selector("mp4", "720")
     assert build_format_selector("mp3", "audio-best") == "bestaudio/best"
 
+
+def test_external_link_validation_and_open(monkeypatch):
+    opened = []
+    monkeypatch.setattr("musicxcst_downloader.backend.external.webbrowser.open", lambda url, **_: opened.append(url))
+    assert is_safe_external_url("https://github.com/B1progame/musicXCST")
+    assert not is_safe_external_url("file:///C:/secret")
+    assert open_external_url("https://github.com/B1progame/musicXCST")["ok"]
+    assert opened == ["https://github.com/B1progame/musicXCST"]
+    assert not open_external_url("javascript:alert(1)")["ok"]

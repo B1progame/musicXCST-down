@@ -10,6 +10,7 @@ from pathlib import Path
 import webview
 
 from .backend.downloader import DownloadWorker, analyze_url, output_filename_from_title, validate_url
+from .backend.external import open_external_url
 from .backend.ffmpeg import probe
 from .backend.history import HistoryItem, HistoryStore
 from .backend.legal import FIRST_RUN_NOTICE, can_download
@@ -146,6 +147,9 @@ class Api:
             return {"ok": True}
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
+
+    def open_external_url(self, url: str) -> dict:
+        return open_external_url(url)
 
     def remove_history(self, index: int) -> list[dict]:
         return self.history_store.remove(index)
