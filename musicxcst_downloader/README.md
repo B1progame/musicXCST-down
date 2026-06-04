@@ -1,8 +1,19 @@
 # MusicXCST Downloader
 
-MusicXCST Downloader is a standalone Windows desktop app by B1progame. It is a modern private downloader tool with a web-style GUI built with Python, pywebview, yt-dlp, and FFmpeg.
+MusicXCST Downloader is a standalone Windows desktop app by **B1progame**. It is a modern private downloader tool with a polished web-style GUI built with Python, pywebview, yt-dlp, and FFmpeg.
 
 This app is not the Minecraft mod and is not integrated into any Minecraft mod jar. The MusicXCST name/style is only a visual reference.
+
+## Status
+
+- App type: standalone Windows desktop app
+- GUI: local HTML/CSS/JS through pywebview
+- Downloader engine: yt-dlp
+- Conversion/probing: FFmpeg and ffprobe
+- Packaging: PyInstaller one-folder build
+- Installer: optional Inno Setup script
+- Network styling: no online CSS or JS CDNs
+- Privacy: no telemetry, accounts, cookies, credential import, or credential storage
 
 ## Legal use warning
 
@@ -20,6 +31,11 @@ The app does not bypass DRM, paywalls, logins, private content, age restrictions
 - Live progress, speed, ETA, cancel support, final path, open folder, and copy path.
 - Local settings, history, and logs under `%APPDATA%\MusicXCST Downloader`.
 - FFmpeg detection from PATH or a custom path.
+- About page links open in the default browser.
+
+## License
+
+This project uses a private-use license. See the repository root `LICENSE` file.
 
 ## Installation for development
 

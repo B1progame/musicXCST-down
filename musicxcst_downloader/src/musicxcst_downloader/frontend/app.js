@@ -170,7 +170,7 @@ window.MusicXCST = {
       }
     }
     if (event.type === "status") setStatus(event.status);
-  if (event.type === "progress") {
+    if (event.type === "progress") {
       state.downloading = true;
       setProgress(event.percent);
       setStatus(event.status || "Downloading...", [event.speed, event.eta && `ETA ${event.eta}`].filter(Boolean).join(" / ") || "--");
@@ -211,7 +211,6 @@ document.addEventListener("DOMContentLoaded", () => {
     "speedEta",
     "progressBar",
     "historyList",
-    "githubLink",
   ].forEach((id) => {
     elements[id] = $(id);
   });
@@ -284,10 +283,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (button.dataset.historyAction === "copy") await copyText(item.output_path);
     if (button.dataset.historyAction === "remove") renderHistory(await api().remove_history(index));
   });
-  elements.githubLink.addEventListener("click", async (event) => {
-    event.preventDefault();
-    const result = await api().open_external_url(event.currentTarget.dataset.externalUrl);
-    if (!result.ok) setStatus(`Could not open link: ${result.error}`);
+  document.querySelectorAll("[data-external-url]").forEach((link) => {
+    link.addEventListener("click", async (event) => {
+      event.preventDefault();
+      const result = await api().open_external_url(event.currentTarget.dataset.externalUrl);
+      if (!result.ok) setStatus(`Could not open link: ${result.error}`);
+    });
   });
 
   ["setOutput", "setFormat", "setQuality", "setAccent", "setFfmpegMode", "setFfmpegPath", "setMaxDuration", "setLogging"].forEach((id) => {
