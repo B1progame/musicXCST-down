@@ -6,6 +6,7 @@ const state = {
   lastOutputPath: "",
   analyzing: false,
   downloading: false,
+  settingsDirty: false,
   progressFrame: 0,
   pendingProgress: null,
 };
@@ -137,6 +138,7 @@ function setupSettingsSelects() {
 
 async function saveSettingsPatch(patch) {
   fillSettings(await api().save_settings(patch));
+  markSettingsSaved();
 }
 
 function collectSettingsPatch() {
@@ -152,6 +154,18 @@ function collectSettingsPatch() {
     keep_temporary_original: $("setKeepTemp").checked,
     logging_level: $("setLogging").value,
   };
+}
+
+function markSettingsDirty() {
+  state.settingsDirty = true;
+  const indicator = $("settingsSaveState");
+  if (indicator) indicator.textContent = "Unsaved changes";
+}
+
+function markSettingsSaved() {
+  state.settingsDirty = false;
+  const indicator = $("settingsSaveState");
+  if (indicator) indicator.textContent = "Saved";
 }
 
 window.MusicXCST = {
@@ -292,20 +306,28 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   ["setOutput", "setFormat", "setQuality", "setAccent", "setFfmpegMode", "setFfmpegPath", "setMaxDuration", "setLogging"].forEach((id) => {
-    $(id).addEventListener("change", () => saveSettingsPatch(collectSettingsPatch()));
+    $(id).addEventListener("change", markSettingsDirty);
   });
-  ["setOpenAfter", "setKeepTemp"].forEach((id) => $(id).addEventListener("change", () => saveSettingsPatch(collectSettingsPatch())));
+  ["setOpenAfter", "setKeepTemp"].forEach((id) => $(id).addEventListener("change", markSettingsDirty));
 
   $("selectFfmpegBtn").addEventListener("click", async () => {
     const path = await api().select_ffmpeg();
     if (path) {
       $("setFfmpegPath").value = path;
-      await saveSettingsPatch(collectSettingsPatch());
+      markSettingsDirty();
     }
   });
 
+  $("settingsSaveBtn").addEventListener("click", async () => {
+    await saveSettingsPatch(collectSettingsPatch());
+    setStatus("Settings saved.");
+  });
   $("testFfmpegBtn").addEventListener("click", async () => renderFfmpeg(await api().test_ffmpeg($("setFfmpegMode").value, $("setFfmpegPath").value)));
-  $("resetSettingsBtn").addEventListener("click", async () => fillSettings(await api().reset_settings()));
+  $("resetSettingsBtn").addEventListener("click", async () => {
+    fillSettings(await api().reset_settings());
+    markSettingsSaved();
+    setStatus("Settings reset.");
+  });
 
   document.addEventListener("keydown", (event) => {
     if (event.ctrlKey && event.key.toLowerCase() === "l") {

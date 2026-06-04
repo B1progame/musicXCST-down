@@ -165,9 +165,9 @@ def main() -> None:
         "MusicXCST Downloader",
         url=frontend_index().as_uri(),
         js_api=api,
-        width=1180,
-        height=760,
-        min_size=(940, 620),
+        width=1323,
+        height=960,
+        min_size=(860, 560),
         background_color="#080a0f",
     )
     api.bind_window(window)

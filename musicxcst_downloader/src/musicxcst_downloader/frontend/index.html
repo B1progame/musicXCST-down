@@ -167,7 +167,11 @@
           <section class="panel settings-grid">
             <div class="panel-heading full">
               <h2>Settings</h2>
-              <button id="resetSettingsBtn" class="ghost danger">Reset Settings</button>
+              <div class="settings-actions">
+                <span id="settingsSaveState">Saved</span>
+                <button id="settingsSaveBtn" class="primary">Save Settings</button>
+                <button id="resetSettingsBtn" class="ghost danger">Reset Settings</button>
+              </div>
             </div>
             <label class="field"><span>Default output folder</span><input id="setOutput" /></label>
             <label class="field"><span>Default format</span><select id="setFormat"></select></label>

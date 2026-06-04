@@ -19,8 +19,13 @@
   box-sizing: border-box;
 }
 
+html {
+  height: 100%;
+}
+
 body {
   margin: 0;
+  height: 100%;
   min-height: 100vh;
   background:
     radial-gradient(circle at 18% 8%, rgba(86, 240, 255, 0.09), transparent 26%),
@@ -47,7 +52,8 @@ a {
 .app-shell {
   display: grid;
   grid-template-columns: 236px 1fr;
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
 }
 
 .sidebar {
@@ -58,6 +64,8 @@ a {
   border-right: 1px solid var(--line);
   background: rgba(5, 7, 11, 0.8);
   backdrop-filter: blur(18px);
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .brand {
@@ -167,7 +175,9 @@ nav {
 
 .content {
   padding: 28px;
-  overflow: auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .topbar {
@@ -202,6 +212,7 @@ p {
 
 .page.active {
   display: block;
+  padding-bottom: 28px;
 }
 
 .grid.two {
@@ -507,6 +518,18 @@ dd {
   grid-column: 1 / -1;
 }
 
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.settings-actions span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .ffmpeg-card {
   padding: 16px;
   border-radius: var(--radius);
@@ -634,10 +657,6 @@ pre {
 }
 
 @media (max-width: 980px) {
-  body {
-    overflow: auto;
-  }
-
   .app-shell {
     grid-template-columns: 1fr;
   }
@@ -649,6 +668,7 @@ pre {
     flex-direction: row;
     align-items: center;
     padding: 12px;
+    overflow-x: auto;
   }
 
   nav {
