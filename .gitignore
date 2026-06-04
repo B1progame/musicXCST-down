@@ -6,6 +6,7 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+*.egg-info/
 
 # Virtual environments
 .venv/
@@ -25,4 +26,3 @@ dist/
 # OS files
 Thumbs.db
 .DS_Store
-

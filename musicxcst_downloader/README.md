@@ -23,12 +23,20 @@ The app does not bypass DRM, paywalls, logins, private content, age restrictions
 
 ## Installation for development
 
+Python 3.12 is recommended. Python 3.11 is also supported for local development on machines where 3.12 is not installed.
+
 ```powershell
 cd musicxcst_downloader
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
 .\.venv\Scripts\python.exe -m pip install -e .[dev]
 .\.venv\Scripts\python.exe -m musicxcst_downloader.app
+```
+
+If Python 3.12 is not installed, use:
+
+```powershell
+py -3.11 -m venv .venv
 ```
 
 ## FFmpeg setup
@@ -62,6 +70,8 @@ PyInstaller one-folder builds are preferred to reduce antivirus false positives:
 cd musicxcst_downloader
 .\scripts\build_exe.ps1
 ```
+
+The build script reuses either `musicxcst_downloader\.venv` or a repo-root `.venv` if one already exists.
 
 Output:
 
@@ -101,4 +111,3 @@ dist\installer\MusicXCST-Downloader-Setup.exe
 ## Disclaimer
 
 This tool is not affiliated with YouTube, Google, Mojang, Microsoft, Dolby, Adobe, or any video platform.
-
