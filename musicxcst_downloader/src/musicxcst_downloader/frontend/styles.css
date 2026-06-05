@@ -85,54 +85,19 @@ a {
   font-size: 12px;
 }
 
-.brand-mark {
-  position: relative;
+.app-logo {
   width: 46px;
   height: 46px;
   border-radius: 8px;
   background: linear-gradient(145deg, #151923, #050608);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1), 0 0 24px rgba(86, 240, 255, 0.15);
+  object-fit: cover;
+  display: block;
+  flex: 0 0 auto;
 }
 
-.brand-mark.small {
+.app-logo.small {
   margin: 0 auto 18px;
-}
-
-.brand-mark .play {
-  position: absolute;
-  left: 13px;
-  top: 12px;
-  width: 0;
-  height: 0;
-  border-top: 12px solid transparent;
-  border-bottom: 12px solid transparent;
-  border-left: 20px solid var(--red);
-  filter: drop-shadow(0 0 10px rgba(255, 61, 67, 0.6));
-}
-
-.brand-mark .arrow::before,
-.brand-mark .arrow::after {
-  content: "";
-  position: absolute;
-  background: #fff;
-  left: 22px;
-}
-
-.brand-mark .arrow::before {
-  width: 4px;
-  height: 15px;
-  top: 14px;
-  border-radius: 3px;
-}
-
-.brand-mark .arrow::after {
-  width: 12px;
-  height: 12px;
-  top: 24px;
-  transform: translateX(-4px) rotate(45deg);
-  border-right: 4px solid #fff;
-  border-bottom: 4px solid #fff;
-  background: transparent;
 }
 
 nav {
