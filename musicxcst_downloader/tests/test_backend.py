@@ -2,6 +2,7 @@ from pathlib import Path
 
 from musicxcst_downloader.backend.downloader import (
     build_format_selector,
+    format_supports_dolby_atmos,
     output_filename_from_title,
     sanitize_filename,
     validate_url,
@@ -66,6 +67,12 @@ def test_ffmpeg_detection_with_mocked_missing_path(tmp_path: Path):
 def test_format_selector_quality():
     assert build_format_selector("mp3", "audio-best") == "bestaudio/best"
     assert build_format_selector("flac", "audio-small") == "bestaudio/best"
+
+
+def test_dolby_atmos_format_detection():
+    assert format_supports_dolby_atmos({"format_note": "Dolby Atmos", "acodec": "ec-3"})
+    assert format_supports_dolby_atmos({"acodec": "eac3"})
+    assert not format_supports_dolby_atmos({"format_note": "medium", "acodec": "mp4a.40.2"})
 
 
 def test_external_link_validation_and_open(monkeypatch):

@@ -17,6 +17,7 @@ ProgressCallback = Callable[[dict], None]
 
 INVALID_FILENAME_CHARS = r'<>:"/\\|?*\x00-\x1f'
 AUDIO_FORMATS = {"mp3", "ogg", "wav", "flac", "m4a"}
+ATMOS_AUDIO_CODECS = {"eac3", "ec3", "ec-3"}
 
 
 def validate_url(url: str) -> bool:
@@ -48,6 +49,25 @@ def format_duration(seconds: int | float | None) -> str:
     return f"{minutes}:{sec:02d}"
 
 
+def format_supports_dolby_atmos(fmt: dict) -> bool:
+    searchable = " ".join(
+        str(fmt.get(key) or "")
+        for key in (
+            "acodec",
+            "format",
+            "format_id",
+            "format_note",
+            "format_name",
+            "audio_ext",
+            "dynamic_range",
+            "audio_channels",
+            "language",
+        )
+    ).lower()
+    codec = re.sub(r"[^a-z0-9]+", "", str(fmt.get("acodec") or "").lower())
+    return "atmos" in searchable or "dolby atmos" in searchable or codec in ATMOS_AUDIO_CODECS
+
+
 def _best_formats(formats: list[dict]) -> dict:
     audios = [f for f in formats if f.get("acodec") not in (None, "none")]
     best_audio = max(audios, key=lambda f: f.get("abr") or f.get("tbr") or 0, default={})
@@ -61,6 +81,7 @@ def _best_formats(formats: list[dict]) -> dict:
         "audio_bitrate": best_audio.get("abr") or best_audio.get("tbr") or "",
         "audio_sample_rate": best_audio.get("asr") or "",
         "audio_channels": best_audio.get("audio_channels") or "",
+        "dolby_atmos": "Yes" if any(format_supports_dolby_atmos(f) for f in audios) else "No",
     }
 
 
@@ -95,6 +116,7 @@ def analyze_url(url: str, max_duration_warning_minutes: int = 60) -> dict:
                 "acodec": f.get("acodec"),
                 "tbr": f.get("tbr"),
                 "asr": f.get("asr"),
+                "dolby_atmos": format_supports_dolby_atmos(f),
             }
             for f in audio_formats[:80]
         ],

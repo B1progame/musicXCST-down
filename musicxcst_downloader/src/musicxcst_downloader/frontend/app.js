@@ -11,6 +11,9 @@ const state = {
   pendingProgress: null,
   activePage: "download",
   historyRendered: false,
+  historyRenderFrame: 0,
+  settingsSaveTimer: 0,
+  settingsSaving: false,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -35,7 +38,7 @@ const qualityOptions = [
 
 const audioFormats = new Set(formatOptions.map(([value]) => value));
 const audioQualities = new Set(qualityOptions.map(([value]) => value));
-const historyRenderLimit = 200;
+const historyRenderLimit = 80;
 
 function normalizeFormat(value) {
   return audioFormats.has(value) ? value : "mp3";
@@ -99,6 +102,7 @@ function renderAnalysis(data) {
   $("metaUploader").textContent = data.uploader || "--";
   $("metaDuration").textContent = data.duration || "--";
   $("metaAudio").textContent = data.best_audio_quality || "--";
+  $("metaAtmos").textContent = data.dolby_atmos || "--";
   const details = [data.audio_codec, data.audio_bitrate && `${Math.round(data.audio_bitrate)} kbps`, data.audio_sample_rate && `${data.audio_sample_rate} Hz`, data.audio_channels && `${data.audio_channels} ch`].filter(Boolean);
   $("metaAudioDetails").textContent = details.join(" / ") || "--";
   $("filenameInput").value = data.suggested_filename || `${data.safe_filename || "download"}.${extensionForFormat()}`;
@@ -108,7 +112,8 @@ function renderAnalysis(data) {
   $("formatsList").innerHTML = (data.available_formats || []).slice(0, 32).map((f) => {
     const rate = f.tbr ? `${Math.round(f.tbr)}k` : "";
     const sampleRate = f.asr ? `${f.asr} Hz` : "";
-    return `<div>${f.format_id || "--"} | ${f.ext || "--"} | ${f.acodec || "no audio"} ${rate} ${sampleRate}</div>`;
+    const atmos = f.dolby_atmos ? " | Dolby Atmos" : "";
+    return `<div>${f.format_id || "--"} | ${f.ext || "--"} | ${f.acodec || "no audio"}${atmos} ${rate} ${sampleRate}</div>`;
   }).join("") || "No formats returned.";
 }
 
@@ -181,8 +186,21 @@ function setupSettingsSelects() {
 }
 
 async function saveSettingsPatch(patch) {
-  fillSettings(await api().save_settings(patch));
-  markSettingsSaved();
+  state.settingsSaving = true;
+  markSettingsSaving();
+  try {
+    fillSettings(await api().save_settings(patch));
+    markSettingsSaved();
+    return true;
+  } catch (error) {
+    state.settingsDirty = true;
+    const indicator = $("settingsSaveState");
+    if (indicator) indicator.textContent = "Save failed";
+    setStatus(`Settings save failed: ${error.message || error}`);
+    return false;
+  } finally {
+    state.settingsSaving = false;
+  }
 }
 
 function collectSettingsPatch() {
@@ -205,10 +223,32 @@ function markSettingsDirty() {
   if (indicator) indicator.textContent = "Unsaved changes";
 }
 
+function markSettingsSaving() {
+  const indicator = $("settingsSaveState");
+  if (indicator) indicator.textContent = "Saving...";
+}
+
 function markSettingsSaved() {
   state.settingsDirty = false;
   const indicator = $("settingsSaveState");
   if (indicator) indicator.textContent = "Saved";
+}
+
+function scheduleSettingsSave() {
+  clearTimeout(state.settingsSaveTimer);
+  state.settingsSaveTimer = setTimeout(() => {
+    if (state.settingsDirty && !state.settingsSaving) {
+      saveSettingsPatch(collectSettingsPatch());
+    }
+  }, 700);
+}
+
+function queueHistoryRender() {
+  if (state.historyRendered || state.historyRenderFrame) return;
+  state.historyRenderFrame = requestAnimationFrame(() => {
+    state.historyRenderFrame = 0;
+    if (state.activePage === "history") renderHistory();
+  });
 }
 
 window.MusicXCST = {
@@ -267,8 +307,12 @@ function renderFfmpeg(info) {
   $("ffmpegStatus").textContent = `ffmpeg: ${info.ffmpeg_version}\n${info.ffmpeg_path || "No path"}\n\nffprobe: ${info.ffprobe_version}\n${info.ffprobe_path || "No path"}`;
 }
 
-function switchPage(pageName) {
+async function switchPage(pageName) {
   if (!views.pages.has(pageName) || state.activePage === pageName) return;
+  if (state.activePage === "settings" && state.settingsDirty) {
+    clearTimeout(state.settingsSaveTimer);
+    await saveSettingsPatch(collectSettingsPatch());
+  }
   const previousPage = views.pages.get(state.activePage);
   const nextPage = views.pages.get(pageName);
   const previousButton = views.navButtons.find((button) => button.dataset.page === state.activePage);
@@ -282,7 +326,7 @@ function switchPage(pageName) {
   nextPage?.classList.add("active");
   state.activePage = pageName;
 
-  if (pageName === "history" && !state.historyRendered) renderHistory();
+  if (pageName === "history") queueHistoryRender();
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -376,23 +420,32 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   ["setOutput", "setFormat", "setQuality", "setAccent", "setFfmpegMode", "setFfmpegPath", "setMaxDuration", "setLogging"].forEach((id) => {
-    $(id).addEventListener("change", markSettingsDirty);
+    $(id).addEventListener("change", () => {
+      markSettingsDirty();
+      scheduleSettingsSave();
+    });
   });
   $("setAccent").addEventListener("input", (event) => {
     applyAccentColor(event.target.value);
     markSettingsDirty();
+    scheduleSettingsSave();
   });
-  $("setOpenAfter").addEventListener("change", markSettingsDirty);
+  $("setOpenAfter").addEventListener("change", () => {
+    markSettingsDirty();
+    scheduleSettingsSave();
+  });
 
   $("selectFfmpegBtn").addEventListener("click", async () => {
     const path = await api().select_ffmpeg();
     if (path) {
       $("setFfmpegPath").value = path;
       markSettingsDirty();
+      scheduleSettingsSave();
     }
   });
 
   $("settingsSaveBtn").addEventListener("click", async () => {
+    clearTimeout(state.settingsSaveTimer);
     await saveSettingsPatch(collectSettingsPatch());
     setStatus("Settings saved.");
   });
