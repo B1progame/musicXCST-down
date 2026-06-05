@@ -6,7 +6,7 @@ MusicXCST Downloader is a standalone app built with Python, pywebview, yt-dlp, a
 
 ## Legal Notice
 
-Use this tool only for videos/music you own, have permission to use, or are legally allowed to download.
+Use this tool only for music or audio you own, have permission to use, or are legally allowed to download.
 
 The app does not bypass DRM, paywalls, logins, private content, age restrictions, geo-blocks, or platform protections. It does not use cookies, browser profile extraction, account tokens, credential import, telemetry, accounts, or credential storage.
 
@@ -36,4 +36,3 @@ musicxcst_downloader\dist\MusicXCST Downloader\
 ## License
 
 This project uses a private-use license. See [LICENSE](LICENSE).
-

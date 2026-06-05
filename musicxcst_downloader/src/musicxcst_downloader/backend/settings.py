@@ -7,18 +7,20 @@ from typing import Any
 
 from .paths import default_download_dir, settings_path
 
+ALLOWED_AUDIO_FORMATS = {"mp3", "ogg", "wav", "flac", "m4a"}
+ALLOWED_AUDIO_QUALITIES = {"audio-best", "audio-small"}
+
 
 @dataclass
 class Settings:
     default_output_folder: str = str(default_download_dir())
-    default_format: str = "mp4"
-    default_quality: str = "best"
+    default_format: str = "mp3"
+    default_quality: str = "audio-best"
     accent_color: str = "#56f0ff"
     ffmpeg_mode: str = "system"
     custom_ffmpeg_path: str = ""
     max_duration_warning_minutes: int = 60
     open_folder_after_download: bool = False
-    keep_temporary_original: bool = False
     logging_level: str = "INFO"
     first_run_confirmed: bool = False
 
@@ -33,7 +35,7 @@ class SettingsStore:
         try:
             data = json.loads(self.path.read_text(encoding="utf-8"))
             allowed = {field: data.get(field) for field in Settings.__dataclass_fields__}
-            return Settings(**{k: v for k, v in allowed.items() if v is not None})
+            return self._normalize(Settings(**{k: v for k, v in allowed.items() if v is not None}))
         except Exception:
             return Settings()
 
@@ -41,10 +43,17 @@ class SettingsStore:
         if isinstance(settings, dict):
             current = asdict(self.load())
             current.update({k: v for k, v in settings.items() if k in current})
-            settings_obj = Settings(**current)
+            settings_obj = self._normalize(Settings(**current))
         else:
-            settings_obj = settings
+            settings_obj = self._normalize(settings)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.write_text(json.dumps(asdict(settings_obj), indent=2), encoding="utf-8")
         return settings_obj
 
+    @staticmethod
+    def _normalize(settings: Settings) -> Settings:
+        if settings.default_format not in ALLOWED_AUDIO_FORMATS:
+            settings.default_format = "mp3"
+        if settings.default_quality not in ALLOWED_AUDIO_QUALITIES:
+            settings.default_quality = "audio-best"
+        return settings

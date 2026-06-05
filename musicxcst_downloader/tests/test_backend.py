@@ -43,7 +43,7 @@ def test_settings_save_load(tmp_path: Path):
 
 def test_history_save_load_remove_clear(tmp_path: Path):
     store = HistoryStore(tmp_path / "history.json")
-    items = store.add(HistoryItem.now("Title", "https://example.com", "mp4", "C:/x.mp4", "success"))
+    items = store.add(HistoryItem.now("Title", "https://example.com", "mp3", "C:/x.mp3", "success"))
     assert len(items) == 1
     assert store.load()[0]["title"] == "Title"
     assert store.remove(0) == []
@@ -57,8 +57,8 @@ def test_ffmpeg_detection_with_mocked_missing_path(tmp_path: Path):
 
 
 def test_format_selector_quality():
-    assert "height<=720" in build_format_selector("mp4", "720")
     assert build_format_selector("mp3", "audio-best") == "bestaudio/best"
+    assert build_format_selector("flac", "audio-small") == "bestaudio/best"
 
 
 def test_external_link_validation_and_open(monkeypatch):

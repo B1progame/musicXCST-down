@@ -17,15 +17,15 @@ This app is not the Minecraft mod and is not integrated into any Minecraft mod j
 
 ## Legal use warning
 
-Use this tool only for videos/music you own, have permission to use, or are legally allowed to download.
+Use this tool only for music or audio you own, have permission to use, or are legally allowed to download.
 
 The app does not bypass DRM, paywalls, logins, private content, age restrictions, geo-blocks, or platform protections. It does not use cookies, browser profile extraction, account tokens, credential import, telemetry, accounts, or credential storage.
 
 ## Features
 
-- Paste a video/music link and analyze metadata before downloading.
-- Choose MP4, WebM, MP3, OGG, WAV, FLAC, or M4A/AAC output.
-- Choose best, 1080p, 720p, 480p, best audio, or smaller audio settings.
+- Paste a music or audio link and analyze metadata before downloading.
+- Choose MP3, OGG, WAV, FLAC, or M4A/AAC output.
+- Choose best audio or smaller audio settings.
 - Select output folder and editable safe filename.
 - Legal confirmation required before download.
 - Live progress, speed, ETA, cancel support, final path, open folder, and copy path.
@@ -126,4 +126,4 @@ dist\installer\MusicXCST-Downloader-Setup.exe
 
 ## Disclaimer
 
-This tool is not affiliated with YouTube, Google, Mojang, Microsoft, Dolby, Adobe, or any video platform.
+This tool is not affiliated with YouTube, Google, Mojang, Microsoft, Dolby, Adobe, or any media platform.

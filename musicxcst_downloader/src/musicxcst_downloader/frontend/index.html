@@ -14,7 +14,7 @@
           <span class="arrow"></span>
         </div>
         <h1>Before You Download</h1>
-        <p id="legalNotice">Use this tool only for videos/music you own, have permission to use, or are legally allowed to download.</p>
+        <p id="legalNotice">Use this tool only for music or audio you own, have permission to use, or are legally allowed to download.</p>
         <button id="acceptNotice" class="primary wide">I Understand</button>
       </section>
     </div>
@@ -47,7 +47,7 @@
         <header class="topbar">
           <div>
             <h1>MusicXCST Downloader</h1>
-            <p>Fast, clean, modern video and music downloader.</p>
+            <p>Fast, clean, modern music downloader.</p>
           </div>
           <button id="openCurrentFolder" class="ghost">Open Folder</button>
         </header>
@@ -60,7 +60,7 @@
                 <span class="accent-line"></span>
               </div>
               <label class="field full">
-                <span>Video or music link</span>
+                <span>Music or audio link</span>
                 <div class="inline-field">
                   <input id="urlInput" type="url" placeholder="https://..." autocomplete="off" />
                   <button id="analyzeBtn" class="secondary">Analyze Link</button>
@@ -71,8 +71,6 @@
                 <label class="field">
                   <span>Format</span>
                   <select id="formatSelect">
-                    <option value="mp4">MP4 video</option>
-                    <option value="webm">WebM video</option>
                     <option value="mp3">MP3 audio</option>
                     <option value="ogg">OGG audio</option>
                     <option value="wav">WAV audio</option>
@@ -83,11 +81,7 @@
                 <label class="field">
                   <span>Quality</span>
                   <select id="qualitySelect">
-                    <option value="best">Best available</option>
-                    <option value="1080">1080p</option>
-                    <option value="720">720p</option>
-                    <option value="480">480p</option>
-                    <option value="audio-best">Audio only best</option>
+                    <option value="audio-best">Best audio</option>
                     <option value="audio-small">Audio small file</option>
                   </select>
                 </label>
@@ -103,7 +97,7 @@
 
               <label class="field full">
                 <span>Output filename</span>
-                <input id="filenameInput" type="text" placeholder="download.mp4" />
+                <input id="filenameInput" type="text" placeholder="download.mp3" />
               </label>
 
               <label class="checkline">
@@ -140,7 +134,6 @@
                 <div><dt>Title</dt><dd id="metaTitle">--</dd></div>
                 <div><dt>Uploader</dt><dd id="metaUploader">--</dd></div>
                 <div><dt>Duration</dt><dd id="metaDuration">--</dd></div>
-                <div><dt>Best video</dt><dd id="metaVideo">--</dd></div>
                 <div><dt>Best audio</dt><dd id="metaAudio">--</dd></div>
                 <div><dt>Audio details</dt><dd id="metaAudioDetails">--</dd></div>
               </dl>
@@ -182,10 +175,9 @@
             <label class="field"><span>Max duration warning (minutes)</span><input id="setMaxDuration" type="number" min="1" /></label>
             <label class="field"><span>Logging level</span><select id="setLogging"><option>INFO</option><option>DEBUG</option><option>WARNING</option><option>ERROR</option></select></label>
             <label class="toggle"><input id="setOpenAfter" type="checkbox" /><span>Open folder after download</span></label>
-            <label class="toggle"><input id="setKeepTemp" type="checkbox" /><span>Keep temporary original file</span></label>
             <div class="ffmpeg-card">
               <h3>FFmpeg Setup</h3>
-              <p>FFmpeg and ffprobe are needed for merging, conversion, and metadata probing. Use system PATH or choose a local executable.</p>
+              <p>FFmpeg and ffprobe are needed for audio conversion and metadata probing. Use system PATH or choose a local executable.</p>
               <button id="testFfmpegBtn" class="secondary">Test FFmpeg</button>
               <pre id="ffmpegStatus">Not tested</pre>
             </div>
@@ -198,7 +190,7 @@
               <div class="brand-mark about-mark"><span class="play"></span><span class="arrow"></span></div>
               <div>
                 <h2>MusicXCST Downloader</h2>
-                <p class="lead">Fast, clean, modern video and music downloader.</p>
+                <p class="lead">Fast, clean, modern music downloader.</p>
               </div>
             </div>
             <div class="about-badges">
@@ -248,7 +240,7 @@
 
             <article class="panel about-card wide-card">
               <h3>Disclaimer</h3>
-              <p>This tool is not affiliated with YouTube, Google, Mojang, Microsoft, Dolby, Adobe, or any video platform.</p>
+              <p>This tool is not affiliated with YouTube, Google, Mojang, Microsoft, Dolby, Adobe, or any media platform.</p>
             </article>
           </section>
         </section>

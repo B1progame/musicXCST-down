@@ -49,12 +49,9 @@ def format_duration(seconds: int | float | None) -> str:
 
 
 def _best_formats(formats: list[dict]) -> dict:
-    videos = [f for f in formats if f.get("vcodec") not in (None, "none")]
     audios = [f for f in formats if f.get("acodec") not in (None, "none")]
-    best_video = max(videos, key=lambda f: f.get("height") or 0, default={})
     best_audio = max(audios, key=lambda f: f.get("abr") or f.get("tbr") or 0, default={})
     return {
-        "best_video_quality": f"{best_video.get('height')}p" if best_video.get("height") else "Unknown",
         "best_audio_quality": (
             f"{round(best_audio.get('abr') or best_audio.get('tbr'))} kbps"
             if (best_audio.get("abr") or best_audio.get("tbr"))
@@ -80,6 +77,7 @@ def analyze_url(url: str, max_duration_warning_minutes: int = 60) -> dict:
     with YoutubeDL(options) as ydl:
         info = ydl.extract_info(url, download=False)
     formats = info.get("formats") or []
+    audio_formats = [f for f in formats if f.get("acodec") not in (None, "none")]
     best = _best_formats(formats)
     duration = info.get("duration")
     return {
@@ -94,12 +92,11 @@ def analyze_url(url: str, max_duration_warning_minutes: int = 60) -> dict:
             {
                 "format_id": f.get("format_id"),
                 "ext": f.get("ext"),
-                "resolution": f.get("resolution") or (f"{f.get('height')}p" if f.get("height") else "audio"),
-                "vcodec": f.get("vcodec"),
                 "acodec": f.get("acodec"),
                 "tbr": f.get("tbr"),
+                "asr": f.get("asr"),
             }
-            for f in formats[:80]
+            for f in audio_formats[:80]
         ],
         "long_warning": bool(duration and duration > max_duration_warning_minutes * 60),
         **best,
@@ -107,17 +104,9 @@ def analyze_url(url: str, max_duration_warning_minutes: int = 60) -> dict:
 
 
 def build_format_selector(fmt: str, quality: str) -> str:
-    if fmt in AUDIO_FORMATS:
-        return "bestaudio/best"
-    height_map = {"1080": 1080, "720": 720, "480": 480}
-    height = height_map.get(quality)
-    ext_filter = "mp4" if fmt == "mp4" else "webm"
-    if height:
-        return (
-            f"bestvideo[height<={height}][ext={ext_filter}]+bestaudio/"
-            f"bestvideo[height<={height}]+bestaudio/best[height<={height}]/best"
-        )
-    return f"bestvideo[ext={ext_filter}]+bestaudio/bestvideo+bestaudio/best"
+    if fmt not in AUDIO_FORMATS:
+        raise ValueError(f"Unsupported audio format: {fmt}")
+    return "bestaudio/best"
 
 
 class DownloadWorker:
@@ -154,8 +143,8 @@ class DownloadWorker:
 
     def _download(self, request: dict, ffmpeg_mode: str, custom_ffmpeg_path: str) -> None:
         url = request["url"]
-        fmt = request.get("format", "mp4")
-        quality = request.get("quality", "best")
+        fmt = request.get("format", "mp3")
+        quality = request.get("quality", "audio-best")
         output_dir = Path(request["output_folder"]).expanduser().resolve()
         output_dir.mkdir(parents=True, exist_ok=True)
         filename = sanitize_filename(request.get("filename") or "download")
@@ -208,18 +197,15 @@ class DownloadWorker:
             "ffmpeg_location": str(Path(ffmpeg_info["ffmpeg_path"]).parent),
             "postprocessors": [],
             "postprocessor_args": [],
-            "keepvideo": bool(request.get("keep_temporary_original")),
+            "keepvideo": False,
         }
-        if fmt in AUDIO_FORMATS:
-            options["postprocessors"].append(
-                {
-                    "key": "FFmpegExtractAudio",
-                    "preferredcodec": "aac" if fmt == "m4a" else fmt,
-                    "preferredquality": "0" if quality != "audio-small" else "5",
-                }
-            )
-        else:
-            options["merge_output_format"] = fmt
+        options["postprocessors"].append(
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "aac" if fmt == "m4a" else fmt,
+                "preferredquality": "0" if quality != "audio-small" else "5",
+            }
+        )
 
         LOGGER.info("Starting download for %s", url)
         self.progress({"type": "status", "status": "Starting download..."})

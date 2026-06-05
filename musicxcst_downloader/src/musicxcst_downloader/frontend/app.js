@@ -15,8 +15,6 @@ const $ = (id) => document.getElementById(id);
 const elements = {};
 
 const formatOptions = [
-  ["mp4", "MP4 video"],
-  ["webm", "WebM video"],
   ["mp3", "MP3 audio"],
   ["ogg", "OGG audio"],
   ["wav", "WAV audio"],
@@ -25,11 +23,7 @@ const formatOptions = [
 ];
 
 const qualityOptions = [
-  ["best", "Best available"],
-  ["1080", "1080p"],
-  ["720", "720p"],
-  ["480", "480p"],
-  ["audio-best", "Audio only best"],
+  ["audio-best", "Best audio"],
   ["audio-small", "Audio small file"],
 ];
 
@@ -63,7 +57,6 @@ function renderAnalysis(data) {
   $("metaTitle").textContent = data.title || "--";
   $("metaUploader").textContent = data.uploader || "--";
   $("metaDuration").textContent = data.duration || "--";
-  $("metaVideo").textContent = data.best_video_quality || "--";
   $("metaAudio").textContent = data.best_audio_quality || "--";
   const details = [data.audio_codec, data.audio_bitrate && `${Math.round(data.audio_bitrate)} kbps`, data.audio_sample_rate && `${data.audio_sample_rate} Hz`, data.audio_channels && `${data.audio_channels} ch`].filter(Boolean);
   $("metaAudioDetails").textContent = details.join(" / ") || "--";
@@ -73,7 +66,8 @@ function renderAnalysis(data) {
   $("thumb").innerHTML = data.thumbnail ? `<img src="${data.thumbnail}" alt="">` : "No thumbnail";
   $("formatsList").innerHTML = (data.available_formats || []).slice(0, 32).map((f) => {
     const rate = f.tbr ? `${Math.round(f.tbr)}k` : "";
-    return `<div>${f.format_id || "--"} | ${f.ext || "--"} | ${f.resolution || "--"} | ${f.vcodec || "no video"} | ${f.acodec || "no audio"} ${rate}</div>`;
+    const sampleRate = f.asr ? `${f.asr} Hz` : "";
+    return `<div>${f.format_id || "--"} | ${f.ext || "--"} | ${f.acodec || "no audio"} ${rate} ${sampleRate}</div>`;
   }).join("") || "No formats returned.";
 }
 
@@ -117,17 +111,16 @@ function fillSettings(settings) {
   state.settings = settings;
   $("folderInput").value = settings.default_output_folder || "";
   $("setOutput").value = settings.default_output_folder || "";
-  $("formatSelect").value = settings.default_format || "mp4";
-  $("qualitySelect").value = settings.default_quality || "best";
-  $("setFormat").value = settings.default_format || "mp4";
-  $("setQuality").value = settings.default_quality || "best";
+  $("formatSelect").value = settings.default_format || "mp3";
+  $("qualitySelect").value = settings.default_quality || "audio-best";
+  $("setFormat").value = settings.default_format || "mp3";
+  $("setQuality").value = settings.default_quality || "audio-best";
   $("setAccent").value = settings.accent_color || "#56f0ff";
   document.documentElement.style.setProperty("--accent", settings.accent_color || "#56f0ff");
   $("setFfmpegMode").value = settings.ffmpeg_mode || "system";
   $("setFfmpegPath").value = settings.custom_ffmpeg_path || "";
   $("setMaxDuration").value = settings.max_duration_warning_minutes || 60;
   $("setOpenAfter").checked = Boolean(settings.open_folder_after_download);
-  $("setKeepTemp").checked = Boolean(settings.keep_temporary_original);
   $("setLogging").value = settings.logging_level || "INFO";
 }
 
@@ -151,7 +144,6 @@ function collectSettingsPatch() {
     custom_ffmpeg_path: $("setFfmpegPath").value,
     max_duration_warning_minutes: Number($("setMaxDuration").value || 60),
     open_folder_after_download: $("setOpenAfter").checked,
-    keep_temporary_original: $("setKeepTemp").checked,
     logging_level: $("setLogging").value,
   };
 }
@@ -308,7 +300,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ["setOutput", "setFormat", "setQuality", "setAccent", "setFfmpegMode", "setFfmpegPath", "setMaxDuration", "setLogging"].forEach((id) => {
     $(id).addEventListener("change", markSettingsDirty);
   });
-  ["setOpenAfter", "setKeepTemp"].forEach((id) => $(id).addEventListener("change", markSettingsDirty));
+  $("setOpenAfter").addEventListener("change", markSettingsDirty);
 
   $("selectFfmpegBtn").addEventListener("click", async () => {
     const path = await api().select_ffmpeg();

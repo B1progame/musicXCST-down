@@ -105,7 +105,6 @@ class Api:
         if self.worker.running:
             return {"ok": False, "error": "A download is already running."}
 
-        request["keep_temporary_original"] = self.settings.keep_temporary_original
         title = (self.last_analysis or {}).get("title") or request.get("filename") or "Download"
 
         def progress(event: dict) -> None:
