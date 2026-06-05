@@ -49,6 +49,25 @@ function fillOptions(select, options) {
   select.innerHTML = options.map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
 }
 
+function hexToRgb(value) {
+  const match = String(value || "").trim().match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+  if (!match) return [86, 240, 255];
+  return [parseInt(match[1], 16), parseInt(match[2], 16), parseInt(match[3], 16)];
+}
+
+function contrastForRgb([red, green, blue]) {
+  const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
+  return luminance > 0.58 ? "#061015" : "#ffffff";
+}
+
+function applyAccentColor(value) {
+  const accent = value || "#56f0ff";
+  const rgb = hexToRgb(accent);
+  document.documentElement.style.setProperty("--accent", accent);
+  document.documentElement.style.setProperty("--accent-rgb", rgb.join(", "));
+  document.documentElement.style.setProperty("--accent-contrast", contrastForRgb(rgb));
+}
+
 function setStatus(text, detail = "--") {
   elements.statusText.textContent = text;
   elements.speedEta.textContent = detail;
@@ -146,7 +165,7 @@ function fillSettings(settings) {
   $("setFormat").value = defaultFormat;
   $("setQuality").value = defaultQuality;
   $("setAccent").value = settings.accent_color || "#56f0ff";
-  document.documentElement.style.setProperty("--accent", settings.accent_color || "#56f0ff");
+  applyAccentColor(settings.accent_color);
   $("setFfmpegMode").value = settings.ffmpeg_mode || "system";
   $("setFfmpegPath").value = settings.custom_ffmpeg_path || "";
   $("setMaxDuration").value = settings.max_duration_warning_minutes || 60;
@@ -358,6 +377,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   ["setOutput", "setFormat", "setQuality", "setAccent", "setFfmpegMode", "setFfmpegPath", "setMaxDuration", "setLogging"].forEach((id) => {
     $(id).addEventListener("change", markSettingsDirty);
+  });
+  $("setAccent").addEventListener("input", (event) => {
+    applyAccentColor(event.target.value);
+    markSettingsDirty();
   });
   $("setOpenAfter").addEventListener("change", markSettingsDirty);
 

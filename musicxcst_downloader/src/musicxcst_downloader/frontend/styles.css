@@ -9,6 +9,8 @@
   --muted: #9da7b7;
   --soft: #667084;
   --accent: #56f0ff;
+  --accent-rgb: 86, 240, 255;
+  --accent-contrast: #061015;
   --red: #ff3d43;
   --shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
   --radius: 8px;
@@ -28,7 +30,7 @@ body {
   height: 100%;
   min-height: 100vh;
   background:
-    radial-gradient(circle at 18% 8%, rgba(86, 240, 255, 0.09), transparent 26%),
+    radial-gradient(circle at 18% 8%, rgba(var(--accent-rgb), 0.09), transparent 26%),
     linear-gradient(135deg, #050608 0%, #0c1017 48%, #080a0f 100%);
   color: var(--text);
   overflow: hidden;
@@ -90,7 +92,7 @@ a {
   height: 46px;
   border-radius: 8px;
   background: linear-gradient(145deg, #151923, #050608);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1), 0 0 24px rgba(86, 240, 255, 0.15);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1), 0 0 24px rgba(var(--accent-rgb), 0.15);
   object-fit: cover;
   display: block;
   flex: 0 0 auto;
@@ -217,7 +219,7 @@ p {
 }
 
 .accent-line.red {
-  background: linear-gradient(90deg, var(--red), transparent);
+  background: linear-gradient(90deg, var(--accent), transparent);
 }
 
 .field {
@@ -253,8 +255,8 @@ pre {
 
 input:focus,
 select:focus {
-  border-color: rgba(86, 240, 255, 0.75);
-  box-shadow: 0 0 0 3px rgba(86, 240, 255, 0.12);
+  border-color: rgba(var(--accent-rgb), 0.75);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.12);
 }
 
 .inline-field {
@@ -285,14 +287,15 @@ select:focus {
 }
 
 .primary {
-  background: linear-gradient(135deg, var(--red), #d91e30);
-  box-shadow: 0 12px 30px rgba(255, 61, 67, 0.22);
+  background: linear-gradient(135deg, var(--accent), rgba(var(--accent-rgb), 0.74));
+  box-shadow: 0 12px 30px rgba(var(--accent-rgb), 0.22);
+  color: var(--accent-contrast);
   font-weight: 700;
 }
 
 .secondary {
-  background: linear-gradient(135deg, rgba(86, 240, 255, 0.18), rgba(86, 240, 255, 0.06));
-  border: 1px solid rgba(86, 240, 255, 0.32);
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.18), rgba(var(--accent-rgb), 0.06));
+  border: 1px solid rgba(var(--accent-rgb), 0.32);
 }
 
 .ghost,
@@ -361,8 +364,8 @@ button:hover {
   width: 0;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent), #ffffff, var(--red));
-  box-shadow: 0 0 22px rgba(86, 240, 255, 0.35);
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.62), #ffffff, var(--accent));
+  box-shadow: 0 0 22px rgba(var(--accent-rgb), 0.35);
   transition: width 220ms ease;
 }
 
@@ -527,7 +530,7 @@ pre {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(120deg, rgba(86, 240, 255, 0.08), transparent 34%, rgba(255, 61, 67, 0.07));
+  background: linear-gradient(120deg, rgba(var(--accent-rgb), 0.08), transparent 34%, rgba(var(--accent-rgb), 0.07));
 }
 
 .about-title-row {
@@ -560,9 +563,9 @@ pre {
 
 .about-badges span {
   color: var(--text);
-  border: 1px solid rgba(86, 240, 255, 0.26);
+  border: 1px solid rgba(var(--accent-rgb), 0.26);
   border-radius: 999px;
-  background: rgba(86, 240, 255, 0.08);
+  background: rgba(var(--accent-rgb), 0.08);
   padding: 7px 11px;
   font-size: 12px;
 }
