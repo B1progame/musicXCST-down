@@ -9,6 +9,7 @@ const state = {
   settingsDirty: false,
   progressFrame: 0,
   pendingProgress: null,
+  pendingProgressEvent: null,
   activePage: "download",
   historyRendered: false,
   historyRenderFrame: 0,
@@ -76,12 +77,22 @@ function setStatus(text, detail = "--") {
   elements.speedEta.textContent = detail;
 }
 
-function setProgress(percent) {
+function setProgress(percent, event = null) {
   const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
   state.pendingProgress = safePercent;
+  if (event) state.pendingProgressEvent = event;
   if (state.progressFrame) return;
   state.progressFrame = requestAnimationFrame(() => {
     elements.progressBar.style.width = `${state.pendingProgress}%`;
+    elements.progressPercent.textContent = `${Math.round(state.pendingProgress)}%`;
+    if (state.pendingProgressEvent) {
+      const progress = state.pendingProgressEvent;
+      const detail = [progress.speed, progress.eta && `ETA ${progress.eta}`].filter(Boolean).join(" / ") || "--";
+      setStatus(progress.status || "Downloading...", detail);
+      elements.progressStage.textContent = progress.stage || progress.status || "Working";
+      elements.progressBytes.textContent = progress.detail || "--";
+      state.pendingProgressEvent = null;
+    }
     state.progressFrame = 0;
   });
 }
@@ -269,19 +280,24 @@ window.MusicXCST = {
     if (event.type === "status") setStatus(event.status);
     if (event.type === "progress") {
       state.downloading = true;
-      setProgress(event.percent);
-      setStatus(event.status || "Downloading...", [event.speed, event.eta && `ETA ${event.eta}`].filter(Boolean).join(" / ") || "--");
+      $("downloadBtn").disabled = true;
+      setProgress(event.percent, event);
     }
     if (event.type === "complete") {
       state.downloading = false;
       state.lastOutputPath = event.output_path || "";
       $("outputPath").value = state.lastOutputPath;
+      $("downloadBtn").disabled = false;
       setProgress(100);
       setStatus("Download complete.");
+      elements.progressStage.textContent = "Complete";
+      elements.progressBytes.textContent = event.output_path || "--";
     }
     if (event.type === "error") {
       state.downloading = false;
+      $("downloadBtn").disabled = false;
       setStatus(`Error: ${event.message}`);
+      elements.progressStage.textContent = "Error";
     }
     if (event.type === "history") {
       state.history = event.items || [];
@@ -357,6 +373,9 @@ document.addEventListener("DOMContentLoaded", () => {
     "statusText",
     "speedEta",
     "progressBar",
+    "progressPercent",
+    "progressStage",
+    "progressBytes",
     "historyList",
   ].forEach((id) => {
     elements[id] = $(id);
@@ -396,6 +415,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function performDownload(overwrite = false) {
     ensureFilenameExtension();
+    $("downloadBtn").disabled = true;
+    setProgress(0, { status: "Starting download...", stage: "Starting", detail: "--" });
     const result = await api().download({
       url: $("urlInput").value.trim(),
       format: $("formatSelect").value,
@@ -410,7 +431,9 @@ document.addEventListener("DOMContentLoaded", () => {
         await performDownload(true);
         return;
       }
+      $("downloadBtn").disabled = false;
       setStatus(result.error);
+      elements.progressStage.textContent = "Error";
     }
   }
 

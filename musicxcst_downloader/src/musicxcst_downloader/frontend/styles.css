@@ -355,6 +355,28 @@ button:hover {
   margin-bottom: 8px;
 }
 
+.progress-details {
+  display: grid;
+  grid-template-columns: 64px 1fr minmax(110px, auto);
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 8px;
+  align-items: center;
+}
+
+.progress-details span {
+  min-width: 0;
+}
+
+.progress-details span:nth-child(2) {
+  color: var(--text);
+}
+
+.progress-details span:last-child {
+  text-align: right;
+}
+
 .progress-track {
   height: 12px;
   overflow: hidden;

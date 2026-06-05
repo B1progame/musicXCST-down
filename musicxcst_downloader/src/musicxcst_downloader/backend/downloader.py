@@ -49,6 +49,17 @@ def format_duration(seconds: int | float | None) -> str:
     return f"{minutes}:{sec:02d}"
 
 
+def format_bytes(size: int | float | None) -> str:
+    if not size:
+        return ""
+    value = float(size)
+    for unit in ("B", "KB", "MB", "GB"):
+        if value < 1024 or unit == "GB":
+            return f"{value:.1f} {unit}" if unit != "B" else f"{int(value)} B"
+        value /= 1024
+    return ""
+
+
 def format_supports_dolby_atmos(fmt: dict) -> bool:
     searchable = " ".join(
         str(fmt.get(key) or "")
@@ -192,10 +203,12 @@ class DownloadWorker:
                 downloaded = event.get("downloaded_bytes") or 0
                 percent = (downloaded / total * 100) if total else 0
                 now = time.monotonic()
-                if now - last_progress_emit < 0.25 and abs(percent - last_percent) < 1:
+                if now - last_progress_emit < 0.8 and abs(percent - last_percent) < 2:
                     return
                 last_progress_emit = now
                 last_percent = percent
+                downloaded_text = format_bytes(downloaded)
+                total_text = format_bytes(total)
                 self.progress(
                     {
                         "type": "progress",
@@ -203,10 +216,52 @@ class DownloadWorker:
                         "speed": event.get("_speed_str", "").strip(),
                         "eta": event.get("_eta_str", "").strip(),
                         "status": "Downloading...",
+                        "stage": "Downloading audio",
+                        "downloaded": downloaded_text,
+                        "total": total_text,
+                        "detail": f"{downloaded_text} / {total_text}" if downloaded_text and total_text else downloaded_text,
                     }
                 )
             elif event.get("status") == "finished":
-                self.progress({"type": "progress", "percent": 96, "status": "Converting/merging..."})
+                self.progress(
+                    {
+                        "type": "progress",
+                        "percent": 96,
+                        "status": "Download finished. Preparing conversion...",
+                        "stage": "Preparing conversion",
+                    }
+                )
+
+        def postprocessor_hook(event: dict) -> None:
+            status = event.get("status")
+            processor = event.get("postprocessor") or "FFmpeg"
+            if status == "started":
+                self.progress(
+                    {
+                        "type": "progress",
+                        "percent": 97,
+                        "status": f"{processor} started...",
+                        "stage": "Converting audio",
+                    }
+                )
+            elif status == "processing":
+                self.progress(
+                    {
+                        "type": "progress",
+                        "percent": 98,
+                        "status": f"{processor} processing...",
+                        "stage": "Converting audio",
+                    }
+                )
+            elif status == "finished":
+                self.progress(
+                    {
+                        "type": "progress",
+                        "percent": 99,
+                        "status": f"{processor} finished.",
+                        "stage": "Finalizing file",
+                    }
+                )
 
         options = {
             "format": build_format_selector(fmt, quality),
@@ -216,6 +271,7 @@ class DownloadWorker:
             "no_warnings": True,
             "restrictfilenames": False,
             "progress_hooks": [hook],
+            "postprocessor_hooks": [postprocessor_hook],
             "ffmpeg_location": str(Path(ffmpeg_info["ffmpeg_path"]).parent),
             "postprocessors": [],
             "postprocessor_args": [],
@@ -230,7 +286,7 @@ class DownloadWorker:
         )
 
         LOGGER.info("Starting download for %s", url)
-        self.progress({"type": "status", "status": "Starting download..."})
+        self.progress({"type": "progress", "percent": 0, "status": "Starting download...", "stage": "Starting"})
         with YoutubeDL(options) as ydl:
             ydl.download([url])
         self.progress(

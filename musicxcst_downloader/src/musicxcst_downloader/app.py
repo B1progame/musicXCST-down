@@ -31,6 +31,7 @@ class Api:
         self.worker = DownloadWorker(self._emit)
         self.last_analysis: dict | None = None
         self.ffmpeg_download_running = False
+        self.emit_lock = threading.Lock()
 
     def bind_window(self, window: webview.Window) -> None:
         self.window = window
@@ -38,11 +39,12 @@ class Api:
     def _emit(self, event: dict) -> None:
         if not self.window:
             return
-        payload = json.dumps(event)
-        try:
-            self.window.evaluate_js(f"window.MusicXCST.receiveEvent({payload})")
-        except Exception:
-            LOGGER.exception("Could not emit UI event")
+        payload = json.dumps(event, separators=(",", ":"))
+        with self.emit_lock:
+            try:
+                self.window.evaluate_js(f"window.MusicXCST.receiveEvent({payload})")
+            except Exception:
+                LOGGER.exception("Could not emit UI event")
 
     def startup(self) -> dict:
         return {
