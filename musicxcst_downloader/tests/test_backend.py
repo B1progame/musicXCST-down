@@ -41,6 +41,13 @@ def test_settings_save_load(tmp_path: Path):
     assert loaded.max_duration_warning_minutes == 12
 
 
+def test_settings_migrates_video_defaults(tmp_path: Path):
+    store = SettingsStore(tmp_path / "settings.json")
+    saved = store.save({"default_format": "mp4", "default_quality": "720"})
+    assert saved.default_format == "mp3"
+    assert saved.default_quality == "audio-best"
+
+
 def test_history_save_load_remove_clear(tmp_path: Path):
     store = HistoryStore(tmp_path / "history.json")
     items = store.add(HistoryItem.now("Title", "https://example.com", "mp3", "C:/x.mp3", "success"))

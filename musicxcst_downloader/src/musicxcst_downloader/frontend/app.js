@@ -9,10 +9,16 @@ const state = {
   settingsDirty: false,
   progressFrame: 0,
   pendingProgress: null,
+  activePage: "download",
+  historyRendered: false,
 };
 
 const $ = (id) => document.getElementById(id);
 const elements = {};
+const views = {
+  navButtons: [],
+  pages: new Map(),
+};
 
 const formatOptions = [
   ["mp3", "MP3 audio"],
@@ -26,6 +32,22 @@ const qualityOptions = [
   ["audio-best", "Best audio"],
   ["audio-small", "Audio small file"],
 ];
+
+const audioFormats = new Set(formatOptions.map(([value]) => value));
+const audioQualities = new Set(qualityOptions.map(([value]) => value));
+const historyRenderLimit = 200;
+
+function normalizeFormat(value) {
+  return audioFormats.has(value) ? value : "mp3";
+}
+
+function normalizeQuality(value) {
+  return audioQualities.has(value) ? value : "audio-best";
+}
+
+function fillOptions(select, options) {
+  select.innerHTML = options.map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
+}
 
 function setStatus(text, detail = "--") {
   elements.statusText.textContent = text;
@@ -71,9 +93,13 @@ function renderAnalysis(data) {
   }).join("") || "No formats returned.";
 }
 
-function renderHistory(items) {
+function renderHistory(items = state.history) {
   state.history = items || [];
-  $("historyList").innerHTML = state.history.length ? state.history.map((item, index) => `
+  state.historyRendered = true;
+  const visibleItems = state.history.slice(0, historyRenderLimit);
+  const extraCount = Math.max(0, state.history.length - visibleItems.length);
+  $("historyList").innerHTML = visibleItems.length ? `
+    ${visibleItems.map((item, index) => `
     <article class="history-item">
       <div>
         <strong>${escapeHtml(item.title || "Untitled")}</strong>
@@ -86,7 +112,9 @@ function renderHistory(items) {
         <button class="ghost danger" data-history-action="remove" data-history-index="${index}">Remove</button>
       </div>
     </article>
-  `).join("") : `<p class="lead">No downloads yet.</p>`;
+    `).join("")}
+    ${extraCount ? `<p class="lead">Showing latest ${historyRenderLimit} of ${state.history.length} downloads.</p>` : ""}
+  ` : `<p class="lead">No downloads yet.</p>`;
 }
 
 function escapeHtml(value) {
@@ -109,12 +137,14 @@ async function removeHistory(index) {
 
 function fillSettings(settings) {
   state.settings = settings;
+  const defaultFormat = normalizeFormat(settings.default_format);
+  const defaultQuality = normalizeQuality(settings.default_quality);
   $("folderInput").value = settings.default_output_folder || "";
   $("setOutput").value = settings.default_output_folder || "";
-  $("formatSelect").value = settings.default_format || "mp3";
-  $("qualitySelect").value = settings.default_quality || "audio-best";
-  $("setFormat").value = settings.default_format || "mp3";
-  $("setQuality").value = settings.default_quality || "audio-best";
+  $("formatSelect").value = defaultFormat;
+  $("qualitySelect").value = defaultQuality;
+  $("setFormat").value = defaultFormat;
+  $("setQuality").value = defaultQuality;
   $("setAccent").value = settings.accent_color || "#56f0ff";
   document.documentElement.style.setProperty("--accent", settings.accent_color || "#56f0ff");
   $("setFfmpegMode").value = settings.ffmpeg_mode || "system";
@@ -125,8 +155,10 @@ function fillSettings(settings) {
 }
 
 function setupSettingsSelects() {
-  $("setFormat").innerHTML = formatOptions.map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
-  $("setQuality").innerHTML = qualityOptions.map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
+  fillOptions($("formatSelect"), formatOptions);
+  fillOptions($("qualitySelect"), qualityOptions);
+  fillOptions($("setFormat"), formatOptions);
+  fillOptions($("setQuality"), qualityOptions);
 }
 
 async function saveSettingsPatch(patch) {
@@ -192,7 +224,11 @@ window.MusicXCST = {
       state.downloading = false;
       setStatus(`Error: ${event.message}`);
     }
-    if (event.type === "history") renderHistory(event.items);
+    if (event.type === "history") {
+      state.history = event.items || [];
+      state.historyRendered = false;
+      if (state.activePage === "history") renderHistory();
+    }
   },
 };
 
@@ -201,7 +237,8 @@ async function init() {
   const boot = await api().startup();
   $("legalNotice").textContent = boot.legalNotice;
   fillSettings(boot.settings);
-  renderHistory(boot.history);
+  state.history = boot.history || [];
+  if (state.activePage === "history") renderHistory();
   renderFfmpeg(boot.ffmpeg);
   $("firstRun").classList.toggle("hidden", Boolean(boot.settings.first_run_confirmed));
 }
@@ -209,6 +246,24 @@ async function init() {
 function renderFfmpeg(info) {
   $("ffmpegMini").textContent = info.ready ? "FFmpeg ready" : "FFmpeg missing";
   $("ffmpegStatus").textContent = `ffmpeg: ${info.ffmpeg_version}\n${info.ffmpeg_path || "No path"}\n\nffprobe: ${info.ffprobe_version}\n${info.ffprobe_path || "No path"}`;
+}
+
+function switchPage(pageName) {
+  if (!views.pages.has(pageName) || state.activePage === pageName) return;
+  const previousPage = views.pages.get(state.activePage);
+  const nextPage = views.pages.get(pageName);
+  const previousButton = views.navButtons.find((button) => button.dataset.page === state.activePage);
+  const nextButton = views.navButtons.find((button) => button.dataset.page === pageName);
+
+  previousButton?.classList.remove("active");
+  previousPage?.classList.remove("active");
+  previousPage?.setAttribute("hidden", "");
+  nextButton?.classList.add("active");
+  nextPage?.removeAttribute("hidden");
+  nextPage?.classList.add("active");
+  state.activePage = pageName;
+
+  if (pageName === "history" && !state.historyRendered) renderHistory();
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -221,13 +276,14 @@ document.addEventListener("DOMContentLoaded", () => {
     elements[id] = $(id);
   });
 
-  document.querySelectorAll(".nav-item").forEach((button) => {
-    button.addEventListener("click", () => {
-      document.querySelectorAll(".nav-item").forEach((item) => item.classList.remove("active"));
-      document.querySelectorAll(".page").forEach((page) => page.classList.remove("active"));
-      button.classList.add("active");
-      $(`page-${button.dataset.page}`).classList.add("active");
-    });
+  views.navButtons = Array.from(document.querySelectorAll(".nav-item"));
+  document.querySelectorAll(".page").forEach((page) => {
+    const pageName = page.id.replace("page-", "");
+    views.pages.set(pageName, page);
+    if (!page.classList.contains("active")) page.setAttribute("hidden", "");
+  });
+  views.navButtons.forEach((button) => {
+    button.addEventListener("click", () => switchPage(button.dataset.page));
   });
 
   $("acceptNotice").addEventListener("click", async () => {
@@ -242,7 +298,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!result.ok) setStatus(result.error);
   });
 
-  $("formatSelect").addEventListener("change", ensureFilenameExtension);
+  $("formatSelect").addEventListener("change", () => {
+    $("formatSelect").value = normalizeFormat($("formatSelect").value);
+    ensureFilenameExtension();
+  });
 
   $("folderBtn").addEventListener("click", async () => {
     const folder = await api().choose_output_folder();

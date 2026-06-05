@@ -6,7 +6,7 @@ MusicXCST Downloader is a standalone app built with Python, pywebview, yt-dlp, a
 
 ## Legal Notice
 
-Use this tool only for music or audio you own, have permission to use, or are legally allowed to download.
+Use this tool only for music or audio you own, have permission to use, or are legally allowed to download. You alone are responsible for what you download; B1progame and MusicXCST Downloader are not responsible for downloads of music you do not own or have rights to use.
 
 The app does not bypass DRM, paywalls, logins, private content, age restrictions, geo-blocks, or platform protections. It does not use cookies, browser profile extraction, account tokens, credential import, telemetry, accounts, or credential storage.
 

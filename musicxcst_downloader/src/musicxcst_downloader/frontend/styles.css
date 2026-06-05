@@ -206,13 +206,16 @@ p {
   margin-bottom: 0;
 }
 
-.page {
+.page,
+.page[hidden] {
   display: none;
 }
 
 .page.active {
   display: block;
   padding-bottom: 28px;
+  content-visibility: auto;
+  contain-intrinsic-size: 900px;
 }
 
 .grid.two {

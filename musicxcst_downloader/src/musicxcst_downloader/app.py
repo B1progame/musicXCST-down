@@ -8,7 +8,6 @@ from dataclasses import asdict
 from pathlib import Path
 
 import webview
-
 from .backend.downloader import DownloadWorker, analyze_url, output_filename_from_title, validate_url
 from .backend.external import open_external_url
 from .backend.ffmpeg import probe

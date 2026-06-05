@@ -1,5 +1,5 @@
 #define MyAppName "MusicXCST Downloader"
-#define MyAppVersion "1.0.1"
+#define MyAppVersion "1.0.2"
 #define MyAppPublisher "B1progame"
 #define MyAppExeName "MusicXCST Downloader.exe"
 
