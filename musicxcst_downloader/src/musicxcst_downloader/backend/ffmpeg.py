@@ -4,12 +4,17 @@ import subprocess
 from pathlib import Path
 from shutil import which
 
+from .paths import managed_ffmpeg_dir
+
 
 def _bin_name(name: str) -> str:
     return f"{name}.exe"
 
 
 def resolve_binary(name: str, custom_ffmpeg_path: str = "", mode: str = "system") -> str | None:
+    if mode == "managed":
+        candidate = managed_ffmpeg_dir() / "bin" / _bin_name(name)
+        return str(candidate) if candidate.exists() else None
     if mode == "custom" and custom_ffmpeg_path:
         custom = Path(custom_ffmpeg_path)
         if custom.is_dir():
@@ -47,4 +52,3 @@ def probe(mode: str = "system", custom_ffmpeg_path: str = "") -> dict:
         "ffprobe_version": get_version(ffprobe),
         "ready": bool(ffmpeg and ffprobe),
     }
-

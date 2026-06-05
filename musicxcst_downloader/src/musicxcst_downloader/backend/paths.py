@@ -33,10 +33,13 @@ def settings_path() -> Path:
     return app_data_dir() / "settings.json"
 
 
+def managed_ffmpeg_dir() -> Path:
+    return app_data_dir() / "ffmpeg"
+
+
 def history_path() -> Path:
     return app_data_dir() / "history.json"
 
 
 def frontend_index() -> Path:
     return Path(__file__).resolve().parents[1] / "frontend" / "index.html"
-

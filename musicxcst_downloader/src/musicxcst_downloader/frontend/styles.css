@@ -336,6 +336,11 @@ button:hover {
   margin-top: 10px;
 }
 
+.actions.compact {
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+
 .progress-wrap {
   margin: 20px 0 14px;
 }
@@ -509,6 +514,11 @@ dd {
 .about p,
 .about-card p {
   color: var(--muted);
+}
+
+.mini-note {
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 pre {

@@ -1,5 +1,5 @@
 #define MyAppName "MusicXCST Downloader"
-#define MyAppVersion "1.0.5"
+#define MyAppVersion "1.0.6"
 #define MyAppPublisher "B1progame"
 #define MyAppExeName "MusicXCST Downloader.exe"
 
@@ -38,3 +38,6 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+
+[UninstallDelete]
+Type: filesandordirs; Name: "{userappdata}\MusicXCST Downloader\ffmpeg"

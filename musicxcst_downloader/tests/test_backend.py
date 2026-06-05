@@ -1,4 +1,5 @@
 from pathlib import Path
+import zipfile
 
 from musicxcst_downloader.backend.downloader import (
     build_format_selector,
@@ -8,6 +9,7 @@ from musicxcst_downloader.backend.downloader import (
     validate_url,
 )
 from musicxcst_downloader.backend.ffmpeg import probe
+from musicxcst_downloader.backend.managed_ffmpeg import extract_managed_ffmpeg
 from musicxcst_downloader.backend.external import is_safe_external_url, open_external_url
 from musicxcst_downloader.backend.history import HistoryItem, HistoryStore
 from musicxcst_downloader.backend.legal import can_download
@@ -62,6 +64,34 @@ def test_history_save_load_remove_clear(tmp_path: Path):
 
 def test_ffmpeg_detection_with_mocked_missing_path(tmp_path: Path):
     assert probe("custom", str(tmp_path / "missing" / "ffmpeg.exe"))["ready"] is False
+
+
+def test_managed_ffmpeg_extracts_required_bins(tmp_path: Path):
+    archive_path = tmp_path / "ffmpeg.zip"
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr("ffmpeg-essentials/bin/ffmpeg.exe", b"ffmpeg")
+        archive.writestr("ffmpeg-essentials/bin/ffprobe.exe", b"ffprobe")
+        archive.writestr("ffmpeg-essentials/doc/readme.txt", b"ignored")
+
+    install_dir = tmp_path / "managed"
+    ffmpeg_path = extract_managed_ffmpeg(archive_path, install_dir)
+
+    assert ffmpeg_path == install_dir / "bin" / "ffmpeg.exe"
+    assert (install_dir / "bin" / "ffprobe.exe").exists()
+    assert not (install_dir / "doc" / "readme.txt").exists()
+
+
+def test_managed_ffmpeg_probe_uses_app_folder(tmp_path: Path, monkeypatch):
+    bin_dir = tmp_path / "ffmpeg" / "bin"
+    bin_dir.mkdir(parents=True)
+    (bin_dir / "ffmpeg.exe").write_text("", encoding="utf-8")
+    (bin_dir / "ffprobe.exe").write_text("", encoding="utf-8")
+    monkeypatch.setattr("musicxcst_downloader.backend.ffmpeg.managed_ffmpeg_dir", lambda: tmp_path / "ffmpeg")
+
+    status = probe("managed")
+
+    assert status["ffmpeg_path"].endswith("ffmpeg.exe")
+    assert status["ffprobe_path"].endswith("ffprobe.exe")
 
 
 def test_format_selector_quality():

@@ -288,6 +288,23 @@ window.MusicXCST = {
       state.historyRendered = false;
       if (state.activePage === "history") renderHistory();
     }
+    if (event.type === "settings") {
+      fillSettings(event.settings || {});
+      markSettingsSaved();
+    }
+    if (event.type === "ffmpeg") {
+      renderFfmpeg(event.status);
+    }
+    if (event.type === "ffmpeg_download") {
+      if (event.ok === false) {
+        setFfmpegDownloadState(false);
+        setStatus(`FFmpeg download failed: ${event.status}`);
+        return;
+      }
+      const percent = Number(event.percent || 0);
+      setFfmpegDownloadState(percent < 100, percent < 100 ? `Downloading ${Math.round(percent)}%` : "Download App FFmpeg");
+      setStatus(event.status || "Downloading FFmpeg...");
+    }
   },
 };
 
@@ -305,6 +322,12 @@ async function init() {
 function renderFfmpeg(info) {
   $("ffmpegMini").textContent = info.ready ? "FFmpeg ready" : "FFmpeg missing";
   $("ffmpegStatus").textContent = `ffmpeg: ${info.ffmpeg_version}\n${info.ffmpeg_path || "No path"}\n\nffprobe: ${info.ffprobe_version}\n${info.ffprobe_path || "No path"}`;
+}
+
+function setFfmpegDownloadState(running, label = "Download App FFmpeg") {
+  const button = $("downloadFfmpegBtn");
+  button.disabled = running;
+  button.textContent = label;
 }
 
 async function switchPage(pageName) {
@@ -448,6 +471,18 @@ document.addEventListener("DOMContentLoaded", () => {
     clearTimeout(state.settingsSaveTimer);
     await saveSettingsPatch(collectSettingsPatch());
     setStatus("Settings saved.");
+  });
+  $("downloadFfmpegBtn").addEventListener("click", async () => {
+    clearTimeout(state.settingsSaveTimer);
+    if (state.settingsDirty) await saveSettingsPatch(collectSettingsPatch());
+    setFfmpegDownloadState(true, "Starting...");
+    const result = await api().download_managed_ffmpeg();
+    if (!result.ok) {
+      setFfmpegDownloadState(false);
+      setStatus(result.error);
+    } else {
+      setStatus(result.status);
+    }
   });
   $("testFfmpegBtn").addEventListener("click", async () => renderFfmpeg(await api().test_ffmpeg($("setFfmpegMode").value, $("setFfmpegPath").value)));
   $("resetSettingsBtn").addEventListener("click", async () => {

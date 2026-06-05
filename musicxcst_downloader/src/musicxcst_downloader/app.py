@@ -14,6 +14,7 @@ from .backend.ffmpeg import probe
 from .backend.history import HistoryItem, HistoryStore
 from .backend.legal import FIRST_RUN_NOTICE, can_download
 from .backend.logging_setup import configure_logging
+from .backend.managed_ffmpeg import download_managed_ffmpeg
 from .backend.paths import frontend_index
 from .backend.settings import Settings, SettingsStore
 
@@ -29,6 +30,7 @@ class Api:
         configure_logging(self.settings.logging_level)
         self.worker = DownloadWorker(self._emit)
         self.last_analysis: dict | None = None
+        self.ffmpeg_download_running = False
 
     def bind_window(self, window: webview.Window) -> None:
         self.window = window
@@ -76,6 +78,28 @@ class Api:
 
     def test_ffmpeg(self, mode: str | None = None, custom_path: str | None = None) -> dict:
         return probe(mode or self.settings.ffmpeg_mode, custom_path or self.settings.custom_ffmpeg_path)
+
+    def download_managed_ffmpeg(self) -> dict:
+        if self.ffmpeg_download_running:
+            return {"ok": False, "error": "FFmpeg download is already running."}
+
+        def run() -> None:
+            self.ffmpeg_download_running = True
+            try:
+                result = download_managed_ffmpeg(self._emit)
+                self.settings = self.settings_store.save({"ffmpeg_mode": "managed"})
+                ffmpeg_status = probe(self.settings.ffmpeg_mode, self.settings.custom_ffmpeg_path)
+                self._emit({"type": "settings", "settings": asdict(self.settings)})
+                self._emit({"type": "ffmpeg", "status": ffmpeg_status})
+                self._emit({"type": "ffmpeg_download", "ok": True, "status": result["license"], "percent": 100})
+            except Exception as exc:
+                LOGGER.exception("Managed FFmpeg download failed")
+                self._emit({"type": "ffmpeg_download", "ok": False, "status": str(exc), "percent": 0})
+            finally:
+                self.ffmpeg_download_running = False
+
+        threading.Thread(target=run, daemon=True).start()
+        return {"ok": True, "status": "FFmpeg download started"}
 
     def analyze(self, url: str) -> dict:
         if not validate_url(url):

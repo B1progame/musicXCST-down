@@ -172,8 +172,12 @@
             <label class="toggle"><input id="setOpenAfter" type="checkbox" /><span>Open folder after download</span></label>
             <div class="ffmpeg-card">
               <h3>FFmpeg Setup</h3>
-              <p>FFmpeg and ffprobe are needed for audio conversion and metadata probing. Use system PATH or choose a local executable.</p>
-              <button id="testFfmpegBtn" class="secondary">Test FFmpeg</button>
+              <p>FFmpeg and ffprobe are needed for audio conversion and metadata probing. Use system PATH, choose a local executable, or download an app-managed LGPL essentials build.</p>
+              <div class="actions compact">
+                <button id="downloadFfmpegBtn" class="primary">Download App FFmpeg</button>
+                <button id="testFfmpegBtn" class="secondary">Test FFmpeg</button>
+              </div>
+              <p class="mini-note">Managed FFmpeg is stored only in this app's data folder and is removed by the installer uninstall.</p>
               <pre id="ffmpegStatus">Not tested</pre>
             </div>
           </section>

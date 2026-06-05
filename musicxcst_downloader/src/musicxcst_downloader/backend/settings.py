@@ -9,6 +9,7 @@ from .paths import default_download_dir, settings_path
 
 ALLOWED_AUDIO_FORMATS = {"mp3", "ogg", "wav", "flac", "m4a"}
 ALLOWED_AUDIO_QUALITIES = {"audio-best", "audio-small"}
+ALLOWED_FFMPEG_MODES = {"system", "custom", "managed"}
 
 
 @dataclass
@@ -56,4 +57,6 @@ class SettingsStore:
             settings.default_format = "mp3"
         if settings.default_quality not in ALLOWED_AUDIO_QUALITIES:
             settings.default_quality = "audio-best"
+        if settings.ffmpeg_mode not in ALLOWED_FFMPEG_MODES:
+            settings.ffmpeg_mode = "system"
         return settings
