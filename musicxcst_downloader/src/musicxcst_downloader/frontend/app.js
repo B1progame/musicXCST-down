@@ -485,6 +485,10 @@ window.MusicXCST = {
     }
     if (event.type === "ytdlp_update") {
       setYtdlpUpdateState(Boolean(event.running), event.running ? "Updating..." : "Update yt-dlp");
+      if (event.percent !== undefined) setYtdlpProgress(event.percent, event.status || "Updating yt-dlp...");
+      else if (event.running) setYtdlpProgress(0, event.status || "Updating yt-dlp...");
+      else if (event.ok) setYtdlpProgress(100, event.status || "yt-dlp update finished.");
+      else setYtdlpProgress(0, event.status || "yt-dlp update failed.");
       if (event.version) renderYtdlp({ version: event.version });
       $("ytdlpStatus").textContent = event.status || "yt-dlp update finished.";
       setStatus(event.status || "yt-dlp update finished.");
@@ -563,6 +567,16 @@ function setYtdlpUpdateState(running, label = "Update yt-dlp") {
   const button = $("updateYtdlpBtn");
   button.disabled = running;
   button.textContent = label;
+}
+
+function setYtdlpProgress(percent, status = "Ready.") {
+  const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
+  const bar = $("ytdlpProgressBar");
+  if (bar) bar.style.width = `${safePercent}%`;
+  const percentLabel = $("ytdlpProgressPercent");
+  if (percentLabel) percentLabel.textContent = `${Math.round(safePercent)}%`;
+  const statusLabel = $("ytdlpProgressStatus");
+  if (statusLabel) statusLabel.textContent = status;
 }
 
 function renderAppVersion(version) {
@@ -843,9 +857,11 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   $("updateYtdlpBtn").addEventListener("click", async () => {
     setYtdlpUpdateState(true, "Starting...");
+    setYtdlpProgress(0, "Starting yt-dlp update...");
     const result = await callApi("update_ytdlp");
     if (!result.ok) {
       setYtdlpUpdateState(false);
+      setYtdlpProgress(0, result.error || "yt-dlp update failed.");
       $("ytdlpStatus").textContent = result.error;
       setStatus(result.error);
     } else {

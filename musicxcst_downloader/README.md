@@ -11,7 +11,7 @@ This app is not the Minecraft mod and is not integrated into any Minecraft mod j
 - Downloader engine: yt-dlp
 - Conversion/probing: FFmpeg and ffprobe
 - Packaging: PyInstaller one-folder build
-- Installer: optional Inno Setup script
+- Installer: self-contained terminal-style PyInstaller installer
 - Network styling: no online CSS or JS CDNs
 - Privacy: no telemetry or credential export; Web tab site data stays in its local browser profile
 
@@ -24,11 +24,14 @@ The app does not bypass DRM, paywalls, logins, private content, age restrictions
 ## Features
 
 - Paste a music or audio link and analyze metadata before downloading.
-- Choose MP3, OGG, WAV, FLAC, or M4A/AAC output.
+- Choose audio-only, video-only, or video-with-audio downloads.
+- Choose MP3, OGG, WAV, FLAC, M4A/AAC, MP4, MKV, WebM, MOV, AVI, M4V, or TS output.
+- Scan available streams, codecs, bitrates, sizes, frame rates, and the best quality before downloading.
 - Choose best audio or smaller audio settings.
 - Select output folder and editable safe filename.
 - Legal confirmation required before download.
-- Live progress, speed, ETA, cancel support, final path, open folder, and copy path.
+- Live download progress, speed, ETA, conversion stage, cancel support, final path, open folder, and copy path.
+- Live yt-dlp update percentage and terminal-style operation log.
 - Local settings, history, and logs under `%APPDATA%\MusicXCST Downloader`.
 - FFmpeg detection from PATH or a custom path.
 - About page links open in the default browser.
@@ -59,7 +62,7 @@ py -3.11 -m venv .venv
 
 Install FFmpeg and make sure `ffmpeg.exe` and `ffprobe.exe` are available on PATH, or choose a custom `ffmpeg.exe` path in Settings.
 
-If FFmpeg is missing, the app shows setup status and explains why it is needed. Managed FFmpeg download is intentionally not implemented yet because it must pin a URL, pin a SHA-256 checksum, verify the file, and show third-party notices before use.
+If FFmpeg is missing, the app shows setup status and explains why it is needed. The Settings page can download and verify a managed FFmpeg build.
 
 ## How to use
 
@@ -97,12 +100,12 @@ dist\MusicXCST Downloader\
 
 ## Build the installer
 
-Install Inno Setup 6, then run:
-
 ```powershell
 cd musicxcst_downloader
 .\scripts\build_installer.ps1
 ```
+
+The script builds the app, embeds the complete payload into a self-contained terminal-style installer, and does not require Inno Setup. Running the installer performs the installation automatically without setup pages or click-through prompts.
 
 Output:
 

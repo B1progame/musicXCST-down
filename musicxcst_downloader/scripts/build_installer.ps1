@@ -18,12 +18,40 @@ $Version = Get-ProjectVersion
 # metadata stay aligned with the current source version.
 & "$PSScriptRoot\build_exe.ps1"
 
-$Inno = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-if (-not (Test-Path $Inno)) {
-    $Inno = "${env:ProgramFiles}\Inno Setup 6\ISCC.exe"
+$Payload = Join-Path $Root "installer\payload.zip"
+$PayloadSource = Join-Path $Root "dist\MusicXCST Downloader"
+if (-not (Test-Path $PayloadSource)) {
+    throw "PyInstaller output was not found at $PayloadSource"
 }
-if (-not (Test-Path $Inno)) {
-    throw "Inno Setup 6 was not found. Install it, then rerun this script."
-}
+Compress-Archive -Path $PayloadSource -DestinationPath $Payload -Force
 
-& $Inno "/DMyAppVersion=$Version" "installer\MusicXCST-Downloader.iss"
+$CandidateVenvs = @(
+    (Join-Path $Root ".venv"),
+    (Join-Path (Split-Path -Parent $Root) ".venv")
+)
+$Venv = $CandidateVenvs | Where-Object {
+    Test-Path (Join-Path $_ "Scripts\pyinstaller.exe")
+} | Select-Object -First 1
+if (-not $Venv) {
+    throw "The project virtual environment with PyInstaller was not found."
+}
+$PyInstaller = Join-Path $Venv "Scripts\pyinstaller.exe"
+$Icon = Join-Path $Root "src\musicxcst_downloader\frontend\assets\icon.ico"
+$InstallerName = "MusicXCST-Downloader-Setup-$Version"
+
+& $PyInstaller `
+    --noconfirm `
+    --clean `
+    --onefile `
+    --console `
+    --name $InstallerName `
+    --icon $Icon `
+    --add-data "$Payload;." `
+    --distpath (Join-Path $Root "dist\installer") `
+    --workpath (Join-Path $Root "build\terminal-installer") `
+    --specpath (Join-Path $Root "build\terminal-installer") `
+    "installer\terminal_installer.py"
+if ($LASTEXITCODE -ne 0) {
+    throw "Terminal installer build failed with exit code $LASTEXITCODE"
+}
+Write-Host "Built dist\installer\$InstallerName.exe"

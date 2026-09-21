@@ -20,19 +20,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install Inno Setup
-        shell: powershell
-        run: choco install innosetup --no-progress --yes
-
       - name: Build installer
         shell: powershell
         working-directory: musicxcst_downloader
         env:
           RELEASE_VERSION: ${{ github.ref_name }}
         run: |
-          $version = $env:RELEASE_VERSION.TrimStart('v')
-          .\scripts\build_exe.ps1
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$version" "installer\MusicXCST-Downloader.iss"
+          .\scripts\build_installer.ps1
 
       - name: Publish GitHub release
         shell: powershell

@@ -243,6 +243,10 @@
               <div class="actions compact">
                 <button id="updateYtdlpBtn" class="secondary" type="button">Update yt-dlp</button>
               </div>
+              <div class="update-progress">
+                <div class="progress-meta"><span id="ytdlpProgressStatus">Ready.</span><span id="ytdlpProgressPercent">0%</span></div>
+                <div class="progress-track"><div id="ytdlpProgressBar" class="progress-bar"></div></div>
+              </div>
               <pre id="ytdlpStatus">Installed version: unknown</pre>
             </div>
             <div class="ffmpeg-card">
@@ -266,7 +270,7 @@
               </div>
             </div>
             <div class="about-badges">
-              <span>Version <strong id="appVersionBadge">2.0.0</strong></span>
+              <span>Version <strong id="appVersionBadge">2.0.2</strong></span>
               <span>Standalone app</span>
               <span>No telemetry</span>
               <span>Private use</span>
@@ -308,7 +312,7 @@
 
             <article class="panel about-card wide-card">
               <h3>Third-party Notices</h3>
-              <p>Uses pywebview, yt-dlp, FFmpeg/ffprobe, PyInstaller, and optional Inno Setup packaging. Third-party tools remain governed by their own licenses.</p>
+              <p>Uses pywebview, yt-dlp, FFmpeg/ffprobe, PyInstaller, and a custom terminal-style installer. Third-party tools remain governed by their own licenses.</p>
             </article>
 
             <article class="panel about-card wide-card">

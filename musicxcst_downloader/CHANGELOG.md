@@ -1,5 +1,12 @@
 # MusicXCST Downloader 2.0.0
 
+## 2.0.2
+
+- Added a dedicated live progress bar for yt-dlp updates, including percentage and current operation status.
+- Download progress is shown immediately when Download is pressed and continues through conversion and finalization.
+- Replaced the click-through Inno Setup flow with a self-contained terminal-style installer that installs automatically, preserves app data, and launches the app when finished.
+- The release workflow now builds the custom installer without requiring Inno Setup.
+
 ## 2.0.1
 
 - Fixed application updates for private GitHub repositories by reusing the authenticated GitHub CLI session automatically.

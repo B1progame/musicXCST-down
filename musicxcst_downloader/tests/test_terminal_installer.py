@@ -1,0 +1,32 @@
+import importlib.util
+import zipfile
+from pathlib import Path
+
+
+def load_installer_module():
+    source = Path(__file__).parents[1] / "installer" / "terminal_installer.py"
+    spec = importlib.util.spec_from_file_location("terminal_installer", source)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_install_payload_copies_app_without_touching_user_data(tmp_path: Path):
+    installer = load_installer_module()
+    payload = tmp_path / "payload.zip"
+    with zipfile.ZipFile(payload, "w") as archive:
+        archive.writestr("MusicXCST Downloader/MusicXCST Downloader.exe", b"new app")
+        archive.writestr("MusicXCST Downloader/_internal/version.txt", b"2.0.2")
+
+    target = tmp_path / "Programs" / "MusicXCST Downloader"
+    user_data = tmp_path / "AppData" / "settings.json"
+    user_data.parent.mkdir(parents=True)
+    user_data.write_text('{"accent_color":"#ff00aa"}', encoding="utf-8")
+
+    result = installer.install_payload(payload, target, log=lambda _: None)
+
+    assert result == target
+    assert (target / "MusicXCST Downloader.exe").read_bytes() == b"new app"
+    assert (target / "_internal" / "version.txt").read_text(encoding="utf-8") == "2.0.2"
+    assert user_data.read_text(encoding="utf-8") == '{"accent_color":"#ff00aa"}'

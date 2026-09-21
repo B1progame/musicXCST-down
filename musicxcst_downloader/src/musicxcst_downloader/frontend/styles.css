@@ -345,6 +345,15 @@ button:hover {
   margin: 20px 0 14px;
 }
 
+.update-progress {
+  margin: 14px 0;
+}
+
+.update-progress .progress-meta {
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
 .progress-meta,
 .result-row {
   display: flex;
