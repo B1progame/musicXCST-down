@@ -450,6 +450,62 @@ dd {
   color: #ffb9bc;
 }
 
+.scan-summary {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid rgba(var(--accent-rgb), 0.16);
+  border-radius: var(--radius);
+  background: rgba(var(--accent-rgb), 0.05);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.terminal-card {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+  background: #05070a;
+}
+
+.terminal-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.terminal-heading h3 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.terminal-heading button {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.terminal-output {
+  min-height: 92px;
+  max-height: 170px;
+  overflow: auto;
+  margin: 0;
+  padding: 10px;
+  border: 0;
+  border-radius: 4px;
+  color: #9cf6c0;
+  background: #020304;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
 .hidden {
   display: none !important;
 }

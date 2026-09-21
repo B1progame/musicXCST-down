@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import subprocess
 import tempfile
 import urllib.request
 from pathlib import Path
+from typing import Callable
 
 
 REPOSITORY = "B1progame/musicXCST-down"
 RELEASES_URL = f"https://api.github.com/repos/{REPOSITORY}/releases/latest"
+ProgressCallback = Callable[[dict], None]
 
 
 def _version_tuple(value: str) -> tuple[int, ...]:
@@ -53,19 +56,36 @@ def check_for_update(current_version: str) -> dict:
         "current_version": current_version,
         "update_available": _version_tuple(latest_version) > _version_tuple(current_version),
         "installer_url": str(installer.get("browser_download_url")) if installer else "",
+        "installer_digest": str(installer.get("digest") or "") if installer else "",
         "release_url": str(release.get("html_url") or ""),
     }
 
 
-def download_and_launch_update(installer_url: str) -> dict:
+def download_and_launch_update(
+    installer_url: str,
+    progress: ProgressCallback | None = None,
+    expected_digest: str = "",
+) -> dict:
     if not installer_url.startswith("https://github.com/"):
         raise RuntimeError("The update installer must be hosted on GitHub.")
 
     target = Path(tempfile.gettempdir()) / "MusicXCST-Downloader-update.exe"
     request = urllib.request.Request(installer_url, headers={"User-Agent": "MusicXCST-Downloader"})
+    digest = expected_digest.removeprefix("sha256:").strip().lower()
+    hasher = hashlib.sha256()
     with urllib.request.urlopen(request, timeout=120) as response, target.open("wb") as output:
+        total = int(response.headers.get("Content-Length") or 0)
+        downloaded = 0
         while chunk := response.read(1024 * 1024):
             output.write(chunk)
+            hasher.update(chunk)
+            downloaded += len(chunk)
+            if progress and total:
+                progress({"percent": round(downloaded / total * 100, 1), "status": "Downloading application installer..."})
+
+    if digest and hasher.hexdigest().lower() != digest:
+        target.unlink(missing_ok=True)
+        raise RuntimeError("The downloaded application installer failed its SHA-256 integrity check.")
 
     os.startfile(str(target))  # type: ignore[attr-defined]
     return {"path": str(target)}

@@ -64,22 +64,24 @@
 
               <div class="row">
                 <label class="field">
-                  <span>Format</span>
-                  <select id="formatSelect">
-                    <option value="mp3">MP3 audio</option>
-                    <option value="ogg">OGG audio</option>
-                    <option value="wav">WAV audio</option>
-                    <option value="flac">FLAC audio</option>
-                    <option value="m4a">M4A/AAC audio</option>
+                  <span>Download mode</span>
+                  <select id="modeSelect">
+                    <option value="audio">Audio only</option>
+                    <option value="video">Video only</option>
+                    <option value="video-audio">Video + audio</option>
                   </select>
                 </label>
                 <label class="field">
-                  <span>Quality</span>
-                  <select id="qualitySelect">
-                    <option value="audio-best">Best audio</option>
-                    <option value="audio-small">Audio small file</option>
-                  </select>
+                  <span>Format</span>
+                  <select id="formatSelect"></select>
                 </label>
+              </div>
+              <div class="row">
+                <label class="field">
+                  <span>Quality</span>
+                  <select id="qualitySelect"></select>
+                </label>
+                <div class="field"><span>Scan result</span><div id="scanSummary" class="scan-summary">Analyze a link to detect the best available streams.</div></div>
               </div>
 
               <label class="field full">
@@ -137,6 +139,11 @@
                 <div><dt>Best audio</dt><dd id="metaAudio">--</dd></div>
                 <div><dt>Dolby Atmos</dt><dd id="metaAtmos">--</dd></div>
                 <div><dt>Audio details</dt><dd id="metaAudioDetails">--</dd></div>
+                <div><dt>Best audio size</dt><dd id="metaAudioSize">--</dd></div>
+                <div><dt>Best video</dt><dd id="metaVideo">--</dd></div>
+                <div><dt>Video details</dt><dd id="metaVideoDetails">--</dd></div>
+                <div><dt>Best video size</dt><dd id="metaVideoSize">--</dd></div>
+                <div><dt>Streams scanned</dt><dd id="metaFormats">--</dd></div>
               </dl>
               <div id="longWarning" class="warning hidden">This item is long. Downloads and conversion may take a while.</div>
               <div class="formats-box">
@@ -144,8 +151,12 @@
                 <div id="formatsList" class="format-list">Analyze a link to view formats.</div>
               </div>
             </aside>
-          </div>
-        </section>
+              </div>
+              <div class="terminal-card">
+                <div class="terminal-heading"><h3>Live operation log</h3><button id="clearTerminalBtn" class="ghost" type="button">Clear</button></div>
+                <pre id="terminalOutput" class="terminal-output">Ready.</pre>
+              </div>
+            </section>
 
         <section id="page-web" class="page">
           <section class="panel web-panel">
@@ -206,8 +217,10 @@
               </div>
             </div>
             <label class="field"><span>Default output folder</span><div class="inline-field"><input id="setOutput" /><button id="setOutputBtn" class="icon-button" type="button" title="Choose default output folder">...</button></div></label>
+            <label class="field"><span>Default download mode</span><select id="setMode"><option value="audio">Audio only</option><option value="video">Video only</option><option value="video-audio">Video + audio</option></select></label>
             <label class="field"><span>Default format</span><select id="setFormat"></select></label>
             <label class="field"><span>Default quality</span><select id="setQuality"></select></label>
+            <label class="field"><span>Default video quality</span><select id="setVideoQuality"></select></label>
             <label class="field"><span>Theme accent color</span><input id="setAccent" type="color" /></label>
             <label class="field"><span>FFmpeg mode</span><select id="setFfmpegMode"><option value="system">system</option><option value="custom">custom path</option><option value="managed">managed</option></select></label>
             <label class="field"><span>Custom FFmpeg path</span><div class="inline-field"><input id="setFfmpegPath" /><button id="selectFfmpegBtn" class="icon-button" type="button">...</button></div></label>
@@ -216,7 +229,7 @@
             <label class="toggle"><input id="setOpenAfter" type="checkbox" /><span>Open folder after download</span></label>
             <div class="ffmpeg-card">
               <h3>FFmpeg Setup</h3>
-              <p>FFmpeg and ffprobe are needed for audio conversion and metadata probing. Use system PATH, choose a local executable, or download an app-managed LGPL essentials build.</p>
+              <p>FFmpeg and ffprobe are needed for video merging, container conversion, audio conversion, and metadata probing. Use system PATH, choose a local executable, or download an app-managed LGPL essentials build.</p>
               <div class="actions compact">
                 <button id="downloadFfmpegBtn" class="primary">Download App FFmpeg</button>
                 <button id="testFfmpegBtn" class="secondary">Test FFmpeg</button>
@@ -253,6 +266,7 @@
               </div>
             </div>
             <div class="about-badges">
+              <span>Version <strong id="appVersionBadge">2.0.0</strong></span>
               <span>Standalone app</span>
               <span>No telemetry</span>
               <span>Private use</span>

@@ -16,7 +16,10 @@ LOGGER = logging.getLogger(__name__)
 ProgressCallback = Callable[[dict], None]
 
 INVALID_FILENAME_CHARS = r'<>:"/\\|?*\x00-\x1f'
-AUDIO_FORMATS = {"mp3", "ogg", "wav", "flac", "m4a"}
+AUDIO_FORMATS = {"mp3", "ogg", "wav", "flac", "m4a", "opus", "aac", "alac"}
+VIDEO_FORMATS = {"mp4", "mkv", "webm", "mov", "avi", "m4v", "ts"}
+DOWNLOAD_MODES = {"audio", "video", "video-audio"}
+VIDEO_QUALITIES = {"best", "2160", "1440", "1080", "720", "480", "360"}
 ATMOS_AUDIO_CODECS = {"eac3", "ec3", "ec-3"}
 
 
@@ -81,7 +84,14 @@ def format_supports_dolby_atmos(fmt: dict) -> bool:
 
 def _best_formats(formats: list[dict]) -> dict:
     audios = [f for f in formats if f.get("acodec") not in (None, "none")]
+    videos = [f for f in formats if f.get("vcodec") not in (None, "none")]
     best_audio = max(audios, key=lambda f: f.get("abr") or f.get("tbr") or 0, default={})
+    best_video = max(
+        videos,
+        key=lambda f: (f.get("height") or 0, f.get("fps") or 0, f.get("tbr") or 0),
+        default={},
+    )
+    best_video_height = best_video.get("height") or 0
     return {
         "best_audio_quality": (
             f"{round(best_audio.get('abr') or best_audio.get('tbr'))} kbps"
@@ -92,7 +102,18 @@ def _best_formats(formats: list[dict]) -> dict:
         "audio_bitrate": best_audio.get("abr") or best_audio.get("tbr") or "",
         "audio_sample_rate": best_audio.get("asr") or "",
         "audio_channels": best_audio.get("audio_channels") or "",
+        "best_audio_filesize": format_bytes(best_audio.get("filesize") or best_audio.get("filesize_approx")),
         "dolby_atmos": "Yes" if any(format_supports_dolby_atmos(f) for f in audios) else "No",
+        "best_video_quality": f"{best_video_height}p" if best_video_height else "Unknown",
+        "best_video_height": best_video_height,
+        "best_video_width": best_video.get("width") or "",
+        "best_video_fps": best_video.get("fps") or "",
+        "best_video_codec": best_video.get("vcodec") or "Unknown",
+        "best_video_bitrate": best_video.get("vbr") or best_video.get("tbr") or "",
+        "best_video_filesize": best_video.get("filesize") or best_video.get("filesize_approx") or "",
+        "best_video_size": format_bytes(best_video.get("filesize") or best_video.get("filesize_approx")),
+        "video_formats_count": len(videos),
+        "audio_formats_count": len(audios),
     }
 
 
@@ -110,6 +131,7 @@ def analyze_url(url: str, max_duration_warning_minutes: int = 60) -> dict:
         info = ydl.extract_info(url, download=False)
     formats = info.get("formats") or []
     audio_formats = [f for f in formats if f.get("acodec") not in (None, "none")]
+    video_formats = [f for f in formats if f.get("vcodec") not in (None, "none")]
     best = _best_formats(formats)
     duration = info.get("duration")
     return {
@@ -125,21 +147,39 @@ def analyze_url(url: str, max_duration_warning_minutes: int = 60) -> dict:
                 "format_id": f.get("format_id"),
                 "ext": f.get("ext"),
                 "acodec": f.get("acodec"),
+                "vcodec": f.get("vcodec"),
+                "kind": "video" if f.get("vcodec") not in (None, "none") else "audio",
+                "width": f.get("width") or "",
+                "height": f.get("height") or "",
+                "fps": f.get("fps") or "",
+                "filesize": f.get("filesize") or f.get("filesize_approx") or "",
                 "tbr": f.get("tbr"),
                 "asr": f.get("asr"),
                 "dolby_atmos": format_supports_dolby_atmos(f),
             }
-            for f in audio_formats[:80]
+            for f in sorted(audio_formats + video_formats, key=lambda item: (item.get("height") or 0, item.get("tbr") or 0), reverse=True)[:120]
         ],
+        "formats_count": len(formats),
         "long_warning": bool(duration and duration > max_duration_warning_minutes * 60),
         **best,
     }
 
 
-def build_format_selector(fmt: str, quality: str) -> str:
-    if fmt not in AUDIO_FORMATS:
-        raise ValueError(f"Unsupported audio format: {fmt}")
-    return "bestaudio/best"
+def build_format_selector(fmt: str, quality: str, mode: str = "audio") -> str:
+    if mode not in DOWNLOAD_MODES:
+        raise ValueError(f"Unsupported download mode: {mode}")
+    if mode == "audio":
+        if fmt not in AUDIO_FORMATS:
+            raise ValueError(f"Unsupported audio format: {fmt}")
+        return "bestaudio/best"
+    if fmt not in VIDEO_FORMATS:
+        raise ValueError(f"Unsupported video format: {fmt}")
+    if quality not in VIDEO_QUALITIES:
+        raise ValueError(f"Unsupported video quality: {quality}")
+    limit = "" if quality == "best" else f"[height<={quality}]"
+    if mode == "video":
+        return f"bestvideo{limit}/bestvideo/best"
+    return f"bestvideo{limit}+bestaudio/best{limit}"
 
 
 class DownloadWorker:
@@ -176,8 +216,9 @@ class DownloadWorker:
 
     def _download(self, request: dict, ffmpeg_mode: str, custom_ffmpeg_path: str) -> None:
         url = request["url"]
-        fmt = request.get("format", "mp3")
-        quality = request.get("quality", "audio-best")
+        mode = request.get("mode", "audio")
+        fmt = request.get("format", "mp3" if mode == "audio" else "mp4")
+        quality = request.get("quality", "audio-best" if mode == "audio" else "best")
         output_dir = Path(request["output_folder"]).expanduser().resolve()
         output_dir.mkdir(parents=True, exist_ok=True)
         filename = sanitize_filename(request.get("filename") or "download")
@@ -264,7 +305,7 @@ class DownloadWorker:
                 )
 
         options = {
-            "format": build_format_selector(fmt, quality),
+            "format": build_format_selector(fmt, quality, mode),
             "outtmpl": str(target.with_suffix(".%(ext)s")),
             "noplaylist": True,
             "quiet": True,
@@ -275,17 +316,22 @@ class DownloadWorker:
             "ffmpeg_location": str(Path(ffmpeg_info["ffmpeg_path"]).parent),
             "postprocessors": [],
             "postprocessor_args": [],
-            "keepvideo": False,
+            "keepvideo": mode == "video",
         }
-        options["postprocessors"].append(
-            {
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "aac" if fmt == "m4a" else fmt,
-                "preferredquality": "0" if quality != "audio-small" else "5",
-            }
-        )
+        if mode == "audio":
+            options["postprocessors"].append(
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "aac" if fmt == "m4a" else fmt,
+                    "preferredquality": "0" if quality != "audio-small" else "5",
+                }
+            )
+        else:
+            options["merge_output_format"] = fmt
+            options["postprocessors"].append({"key": "FFmpegVideoRemuxer", "preferedformat": fmt})
 
         LOGGER.info("Starting download for %s", url)
+        self.progress({"type": "terminal", "line": f"Starting {mode} download as {fmt} ({quality})."})
         self.progress({"type": "progress", "percent": 0, "status": "Starting download...", "stage": "Starting"})
         with YoutubeDL(options) as ydl:
             ydl.download([url])

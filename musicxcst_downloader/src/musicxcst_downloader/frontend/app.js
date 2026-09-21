@@ -26,12 +26,31 @@ const views = {
   pages: new Map(),
 };
 
-const formatOptions = [
+const modeOptions = [
+  ["audio", "Audio only"],
+  ["video", "Video only"],
+  ["video-audio", "Video + audio"],
+];
+
+const audioFormatOptions = [
   ["mp3", "MP3 audio"],
   ["ogg", "OGG audio"],
   ["wav", "WAV audio"],
   ["flac", "FLAC audio"],
   ["m4a", "M4A/AAC audio"],
+  ["opus", "Opus audio"],
+  ["aac", "AAC audio"],
+  ["alac", "ALAC audio"],
+];
+
+const videoFormatOptions = [
+  ["mp4", "MP4 video"],
+  ["mkv", "MKV video"],
+  ["webm", "WebM video"],
+  ["mov", "MOV video"],
+  ["avi", "AVI video"],
+  ["m4v", "M4V video"],
+  ["ts", "MPEG-TS video"],
 ];
 
 const qualityOptions = [
@@ -39,8 +58,20 @@ const qualityOptions = [
   ["audio-small", "Audio small file"],
 ];
 
-const audioFormats = new Set(formatOptions.map(([value]) => value));
+const videoQualityOptions = [
+  ["best", "Best available"],
+  ["2160", "2160p / 4K"],
+  ["1440", "1440p / 2K"],
+  ["1080", "1080p / Full HD"],
+  ["720", "720p / HD"],
+  ["480", "480p"],
+  ["360", "360p"],
+];
+
+const audioFormats = new Set(audioFormatOptions.map(([value]) => value));
+const videoFormats = new Set(videoFormatOptions.map(([value]) => value));
 const audioQualities = new Set(qualityOptions.map(([value]) => value));
+const videoQualities = new Set(videoQualityOptions.map(([value]) => value));
 const historyRenderLimit = 80;
 
 function toCamelCase(value) {
@@ -65,11 +96,34 @@ async function callApi(name, ...args) {
 }
 
 function normalizeFormat(value) {
-  return audioFormats.has(value) ? value : "mp3";
+  return audioFormats.has(value) || videoFormats.has(value) ? value : "mp3";
 }
 
 function normalizeQuality(value) {
   return audioQualities.has(value) ? value : "audio-best";
+}
+
+function normalizeMode(value) {
+  return ["audio", "video", "video-audio"].includes(value) ? value : "audio";
+}
+
+function formatOptionsForMode(mode) {
+  return normalizeMode(mode) === "audio" ? audioFormatOptions : videoFormatOptions;
+}
+
+function qualityOptionsForMode(mode) {
+  return normalizeMode(mode) === "audio" ? qualityOptions : videoQualityOptions;
+}
+
+function refreshDownloadOptions(mode, format = "", quality = "") {
+  const normalizedMode = normalizeMode(mode);
+  fillOptions($("formatSelect"), formatOptionsForMode(normalizedMode));
+  fillOptions($("qualitySelect"), qualityOptionsForMode(normalizedMode));
+  const formats = formatOptionsForMode(normalizedMode).map(([value]) => value);
+  const qualities = qualityOptionsForMode(normalizedMode).map(([value]) => value);
+  $("formatSelect").value = formats.includes(format) ? format : formats[0];
+  $("qualitySelect").value = qualities.includes(quality) ? quality : qualities[0];
+  ensureFilenameExtension();
 }
 
 function fillOptions(select, options) {
@@ -117,6 +171,15 @@ function setStatus(text, detail = "--") {
   elements.speedEta.textContent = detail;
 }
 
+function appendTerminal(line) {
+  const output = $("terminalOutput");
+  if (!output) return;
+  const current = output.textContent === "Ready." ? [] : output.textContent.split("\n");
+  current.push(`[${new Date().toLocaleTimeString()}] ${line}`);
+  output.textContent = current.slice(-120).join("\n");
+  output.scrollTop = output.scrollHeight;
+}
+
 function setProgress(percent, event = null) {
   const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
   state.pendingProgress = safePercent;
@@ -156,6 +219,13 @@ function renderAnalysis(data) {
   $("metaAtmos").textContent = data.dolby_atmos || "--";
   const details = [data.audio_codec, data.audio_bitrate && `${Math.round(data.audio_bitrate)} kbps`, data.audio_sample_rate && `${data.audio_sample_rate} Hz`, data.audio_channels && `${data.audio_channels} ch`].filter(Boolean);
   $("metaAudioDetails").textContent = details.join(" / ") || "--";
+  $("metaAudioSize").textContent = data.best_audio_filesize || "Unknown";
+  $("metaVideo").textContent = data.best_video_quality || "--";
+  const videoDetails = [data.best_video_codec, data.best_video_fps && `${data.best_video_fps} fps`, data.best_video_bitrate && `${Math.round(data.best_video_bitrate)} kbps`].filter(Boolean);
+  $("metaVideoDetails").textContent = videoDetails.join(" / ") || "--";
+  $("metaVideoSize").textContent = data.best_video_size || "Unknown";
+  $("metaFormats").textContent = `${data.formats_count || 0} total / ${data.video_formats_count || 0} video / ${data.audio_formats_count || 0} audio`;
+  $("scanSummary").textContent = `Best available: ${data.best_video_quality || "no video"} video and ${data.best_audio_quality || "no audio"}.`;
   $("filenameInput").value = data.suggested_filename || `${data.safe_filename || "download"}.${extensionForFormat()}`;
   $("longWarning").classList.toggle("hidden", !data.long_warning);
   $("thumb").classList.toggle("empty", !data.thumbnail);
@@ -175,11 +245,12 @@ function renderAnalysis(data) {
   } else {
     $("thumb").textContent = "No thumbnail";
   }
-  $("formatsList").innerHTML = (data.available_formats || []).slice(0, 32).map((f) => {
+  $("formatsList").innerHTML = (data.available_formats || []).slice(0, 40).map((f) => {
     const rate = f.tbr ? `${Math.round(f.tbr)}k` : "";
     const sampleRate = f.asr ? `${f.asr} Hz` : "";
     const atmos = f.dolby_atmos ? " | Dolby Atmos" : "";
-    return `<div>${f.format_id || "--"} | ${f.ext || "--"} | ${f.acodec || "no audio"}${atmos} ${rate} ${sampleRate}</div>`;
+    const resolution = f.height ? `${f.width || "?"}x${f.height}${f.fps ? ` ${f.fps}fps` : ""}` : "audio";
+    return `<div>${f.kind || "stream"} | ${f.format_id || "--"} | ${f.ext || "--"} | ${resolution} | ${f.vcodec || "no video"} | ${f.acodec || "no audio"}${atmos} ${rate} ${sampleRate}</div>`;
   }).join("") || "No formats returned.";
 }
 
@@ -227,16 +298,22 @@ async function removeHistory(index) {
 
 function fillSettings(settings, { updateSettingsForm = true } = {}) {
   state.settings = settings;
+  const defaultMode = normalizeMode(settings.default_mode);
   const defaultFormat = normalizeFormat(settings.default_format);
-  const defaultQuality = normalizeQuality(settings.default_quality);
+  const defaultQuality = defaultMode === "audio" ? normalizeQuality(settings.default_quality) : (videoQualities.has(settings.default_video_quality) ? settings.default_video_quality : "best");
   $("folderInput").value = settings.default_output_folder || "";
-  $("formatSelect").value = defaultFormat;
-  $("qualitySelect").value = defaultQuality;
+  $("modeSelect").value = defaultMode;
+  refreshDownloadOptions(defaultMode, defaultFormat, defaultQuality);
   applyAccentColor(settings.accent_color);
   if (!updateSettingsForm) return;
   $("setOutput").value = settings.default_output_folder || "";
+  $("setMode").value = defaultMode;
+  fillOptions($("setFormat"), formatOptionsForMode(defaultMode));
+  fillOptions($("setQuality"), qualityOptions);
+  fillOptions($("setVideoQuality"), videoQualityOptions);
   $("setFormat").value = defaultFormat;
-  $("setQuality").value = defaultQuality;
+  $("setQuality").value = defaultMode === "audio" ? normalizeQuality(settings.default_quality) : "audio-best";
+  $("setVideoQuality").value = settings.default_video_quality || "best";
   $("setAccent").value = settings.accent_color || "#56f0ff";
   $("setFfmpegMode").value = settings.ffmpeg_mode || "system";
   $("setFfmpegPath").value = settings.custom_ffmpeg_path || "";
@@ -246,10 +323,13 @@ function fillSettings(settings, { updateSettingsForm = true } = {}) {
 }
 
 function setupSettingsSelects() {
-  fillOptions($("formatSelect"), formatOptions);
+  fillOptions($("modeSelect"), modeOptions);
+  fillOptions($("formatSelect"), audioFormatOptions);
   fillOptions($("qualitySelect"), qualityOptions);
-  fillOptions($("setFormat"), formatOptions);
+  fillOptions($("setMode"), modeOptions);
+  fillOptions($("setFormat"), audioFormatOptions);
   fillOptions($("setQuality"), qualityOptions);
+  fillOptions($("setVideoQuality"), videoQualityOptions);
 }
 
 async function saveSettingsPatch(patch) {
@@ -279,8 +359,10 @@ async function saveSettingsPatch(patch) {
 function collectSettingsPatch() {
   return {
     default_output_folder: $("setOutput").value,
+    default_mode: $("setMode").value,
     default_format: $("setFormat").value,
     default_quality: $("setQuality").value,
+    default_video_quality: $("setVideoQuality").value,
     accent_color: normalizeAccentColor($("setAccent").value),
     ffmpeg_mode: $("setFfmpegMode").value,
     custom_ffmpeg_path: $("setFfmpegPath").value,
@@ -358,11 +440,14 @@ window.MusicXCST = {
       state.analyzing = false;
       if (event.ok) {
         renderAnalysis(event.data);
+        appendTerminal(`Analysis complete: ${event.data.formats_count || 0} streams scanned.`);
         setStatus("Analysis complete.");
       } else {
+        appendTerminal(`Analysis failed: ${event.error}`);
         setStatus(`Analysis failed: ${event.error}`);
       }
     }
+    if (event.type === "terminal") appendTerminal(event.line || event.status || "Working...");
     if (event.type === "status") setStatus(event.status);
     if (event.type === "progress") {
       state.downloading = true;
@@ -376,6 +461,7 @@ window.MusicXCST = {
       $("downloadBtn").disabled = false;
       setProgress(100);
       setStatus("Download complete.");
+      appendTerminal(`Completed: ${event.output_path || "output file"}`);
       elements.progressStage.textContent = "Complete";
       elements.progressBytes.textContent = event.output_path || "--";
     }
@@ -383,6 +469,7 @@ window.MusicXCST = {
       state.downloading = false;
       $("downloadBtn").disabled = false;
       setStatus(`Error: ${event.message}`);
+      appendTerminal(`ERROR: ${event.message}`);
       elements.progressStage.textContent = "Error";
     }
     if (event.type === "history") {
@@ -401,6 +488,7 @@ window.MusicXCST = {
       if (event.version) renderYtdlp({ version: event.version });
       $("ytdlpStatus").textContent = event.status || "yt-dlp update finished.";
       setStatus(event.status || "yt-dlp update finished.");
+      appendTerminal(event.status || "yt-dlp update finished.");
     }
     if (event.type === "app_update") {
       setAppUpdateState(Boolean(event.running), event.running ? "Updating..." : "Update App");
@@ -410,6 +498,7 @@ window.MusicXCST = {
         $("appUpdateStatus").textContent = event.status;
       }
       setStatus(event.status || "Application update finished.");
+      appendTerminal(event.status || "Application update finished.");
     }
     if (event.type === "browser_status") {
       const webState = $("webState");
@@ -478,6 +567,7 @@ function setYtdlpUpdateState(running, label = "Update yt-dlp") {
 
 function renderAppVersion(version) {
   $("appUpdateStatus").textContent = `Current version: ${version || "unknown"}`;
+  $("appVersionBadge").textContent = version || "unknown";
 }
 
 function setAppUpdateState(running, label = "Update App") {
@@ -540,6 +630,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   $("analyzeBtn").addEventListener("click", async () => {
     setProgress(0);
+    appendTerminal("$ analyze " + $("urlInput").value.trim());
     setStatus("Starting analysis...");
     const result = await callApi("analyze", $("urlInput").value.trim());
     if (!result.ok) setStatus(result.error);
@@ -548,6 +639,10 @@ document.addEventListener("DOMContentLoaded", () => {
   $("formatSelect").addEventListener("change", () => {
     $("formatSelect").value = normalizeFormat($("formatSelect").value);
     ensureFilenameExtension();
+  });
+  $("modeSelect").addEventListener("change", () => {
+    refreshDownloadOptions($("modeSelect").value);
+    appendTerminal(`Mode selected: ${$("modeSelect").value}`);
   });
 
   $("folderBtn").addEventListener("click", async () => {
@@ -585,8 +680,10 @@ document.addEventListener("DOMContentLoaded", () => {
     setProgress(0, { status: "Starting download...", stage: "Starting", detail: "--" });
     const result = await callApi("download", {
       url: $("urlInput").value.trim(),
+      mode: $("modeSelect").value,
       format: $("formatSelect").value,
       quality: $("qualitySelect").value,
+      video_quality: $("qualitySelect").value,
       output_folder: $("folderInput").value,
       filename: $("filenameInput").value,
       legal_confirmed: $("legalCheck").checked,
@@ -661,6 +758,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   $("copyPathBtn").addEventListener("click", () => copyText($("outputPath").value));
+  $("clearTerminalBtn").addEventListener("click", () => { $("terminalOutput").textContent = "Ready."; });
   $("openCurrentFolder").addEventListener("click", () => callApi("open_folder", $("outputPath").value || $("folderInput").value));
   $("clearHistoryBtn").addEventListener("click", async () => renderHistory(await callApi("clear_history")));
   elements.historyList.addEventListener("click", async (event) => {
@@ -686,6 +784,12 @@ document.addEventListener("DOMContentLoaded", () => {
       markSettingsDirty();
       scheduleSettingsSave();
     });
+  });
+  $("setMode").addEventListener("change", () => {
+    const mode = normalizeMode($("setMode").value);
+    fillOptions($("setFormat"), formatOptionsForMode(mode));
+    markSettingsDirty();
+    scheduleSettingsSave();
   });
   ["setOutput", "setFfmpegPath", "setMaxDuration"].forEach((id) => {
     $(id).addEventListener("input", () => {

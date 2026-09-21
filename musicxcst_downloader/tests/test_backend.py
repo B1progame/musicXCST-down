@@ -2,6 +2,7 @@ from pathlib import Path
 import zipfile
 
 from musicxcst_downloader.backend.downloader import (
+    DownloadWorker,
     build_format_selector,
     format_supports_dolby_atmos,
     output_filename_from_title,
@@ -46,11 +47,25 @@ def test_settings_save_load(tmp_path: Path):
     assert loaded.max_duration_warning_minutes == 12
 
 
+def test_settings_migration_preserves_existing_preferences(tmp_path: Path):
+    path = tmp_path / "settings.json"
+    path.write_text(
+        '{"default_output_folder":"C:/Music","accent_color":"#ff00aa","open_folder_after_download":true}',
+        encoding="utf-8",
+    )
+    loaded = SettingsStore(path).load()
+    assert loaded.default_output_folder == "C:/Music"
+    assert loaded.accent_color == "#ff00aa"
+    assert loaded.open_folder_after_download is True
+    assert loaded.default_mode == "audio"
+
+
 def test_settings_migrates_video_defaults(tmp_path: Path):
     store = SettingsStore(tmp_path / "settings.json")
-    saved = store.save({"default_format": "mp4", "default_quality": "720"})
-    assert saved.default_format == "mp3"
-    assert saved.default_quality == "audio-best"
+    saved = store.save({"default_mode": "video-audio", "default_format": "mp4", "default_video_quality": "720"})
+    assert saved.default_mode == "video-audio"
+    assert saved.default_format == "mp4"
+    assert saved.default_video_quality == "720"
 
 
 def test_history_save_load_remove_clear(tmp_path: Path):
@@ -99,6 +114,53 @@ def test_managed_ffmpeg_probe_uses_app_folder(tmp_path: Path, monkeypatch):
 def test_format_selector_quality():
     assert build_format_selector("mp3", "audio-best") == "bestaudio/best"
     assert build_format_selector("flac", "audio-small") == "bestaudio/best"
+
+
+def test_format_selector_video_modes():
+    assert build_format_selector("mp4", "1080", "video") == "bestvideo[height<=1080]/bestvideo/best"
+    assert build_format_selector("mkv", "best", "video-audio") == "bestvideo+bestaudio/best"
+
+
+def test_video_download_builds_merge_options(tmp_path: Path, monkeypatch):
+    captured = {}
+
+    class FakeYoutubeDL:
+        def __init__(self, options):
+            captured.update(options)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def download(self, urls):
+            captured["urls"] = urls
+
+    monkeypatch.setattr("musicxcst_downloader.backend.downloader.YoutubeDL", FakeYoutubeDL)
+    monkeypatch.setattr(
+        "musicxcst_downloader.backend.downloader.probe",
+        lambda *_: {"ready": True, "ffmpeg_path": str(tmp_path / "ffmpeg.exe")},
+    )
+    events = []
+    worker = DownloadWorker(events.append)
+    worker._download(
+        {
+            "url": "https://example.com/video",
+            "mode": "video-audio",
+            "format": "mp4",
+            "quality": "1080",
+            "output_folder": str(tmp_path),
+            "filename": "clip.mp4",
+        },
+        "custom",
+        str(tmp_path / "ffmpeg.exe"),
+    )
+
+    assert captured["format"] == "bestvideo[height<=1080]+bestaudio/best[height<=1080]"
+    assert captured["merge_output_format"] == "mp4"
+    assert captured["postprocessors"][0]["key"] == "FFmpegVideoRemuxer"
+    assert events[-1]["type"] == "complete"
 
 
 def test_dolby_atmos_format_detection():

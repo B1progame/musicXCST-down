@@ -11,6 +11,10 @@ from urllib.parse import urlparse
 import webview
 from . import __version__
 from .backend.app_updater import check_for_update, download_and_launch_update
+from .backend.ytdlp_runtime import activate_ytdlp_override
+
+activate_ytdlp_override()
+
 from .backend.downloader import DownloadWorker, analyze_url, output_filename_from_title, validate_url
 from .backend.browser import BROWSER_HOME, normalize_browser_url
 from .backend.external import open_external_url
@@ -171,7 +175,12 @@ class Api:
             self._ytdlp_update_running = True
             self._emit({"type": "ytdlp_update", "running": True, "status": "Updating yt-dlp..."})
             try:
-                result = update_ytdlp()
+                def report(update: dict) -> None:
+                    self._emit({"type": "ytdlp_update", "running": True, **update})
+                    if update.get("status"):
+                        self._emit({"type": "terminal", "line": update["status"]})
+
+                result = update_ytdlp(report)
                 self._emit({
                     "type": "ytdlp_update",
                     "running": False,
@@ -199,7 +208,12 @@ class Api:
                 if not release["installer_url"]:
                     raise RuntimeError(f"GitHub release {release['version']} has no Windows installer asset.")
                 self._emit({"type": "app_update", "running": True, "status": f"Downloading version {release['version']}..."})
-                download_and_launch_update(release["installer_url"])
+                def report(update: dict) -> None:
+                    self._emit({"type": "app_update", "running": True, **update})
+                    if update.get("status"):
+                        self._emit({"type": "terminal", "line": update["status"]})
+
+                download_and_launch_update(release["installer_url"], report, release.get("installer_digest", ""))
                 self._emit({"type": "app_update", "running": False, "ok": True, "available": True, "version": release["version"], "status": "Update downloaded. Closing the app to install it..."})
                 if self._window:
                     self._window.destroy()
@@ -254,7 +268,7 @@ class Api:
                     HistoryItem.now(
                         title=title,
                         source_url=request["url"],
-                        selected_format=request.get("format", ""),
+                        selected_format=f"{request.get('mode', 'audio')} / {request.get('format', '')}",
                         output_path=output_path,
                         status=status,
                     )

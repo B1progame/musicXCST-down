@@ -8,16 +8,20 @@ from typing import Any
 
 from .paths import default_download_dir, settings_path
 
-ALLOWED_AUDIO_FORMATS = {"mp3", "ogg", "wav", "flac", "m4a"}
+ALLOWED_MODES = {"audio", "video", "video-audio"}
+ALLOWED_FORMATS = {"mp3", "ogg", "wav", "flac", "m4a", "opus", "aac", "alac", "mp4", "mkv", "webm", "mov", "avi", "m4v", "ts"}
 ALLOWED_AUDIO_QUALITIES = {"audio-best", "audio-small"}
+ALLOWED_VIDEO_QUALITIES = {"best", "2160", "1440", "1080", "720", "480", "360"}
 ALLOWED_FFMPEG_MODES = {"system", "custom", "managed"}
 
 
 @dataclass
 class Settings:
     default_output_folder: str = str(default_download_dir())
+    default_mode: str = "audio"
     default_format: str = "mp3"
     default_quality: str = "audio-best"
+    default_video_quality: str = "best"
     accent_color: str = "#56f0ff"
     ffmpeg_mode: str = "system"
     custom_ffmpeg_path: str = ""
@@ -25,6 +29,7 @@ class Settings:
     open_folder_after_download: bool = False
     logging_level: str = "INFO"
     first_run_confirmed: bool = False
+    settings_version: int = 2
 
 
 class SettingsStore:
@@ -59,10 +64,15 @@ class SettingsStore:
 
     @staticmethod
     def _normalize(settings: Settings) -> Settings:
-        if settings.default_format not in ALLOWED_AUDIO_FORMATS:
+        if settings.default_mode not in ALLOWED_MODES:
+            settings.default_mode = "audio"
+        if settings.default_format not in ALLOWED_FORMATS:
             settings.default_format = "mp3"
         if settings.default_quality not in ALLOWED_AUDIO_QUALITIES:
             settings.default_quality = "audio-best"
+        if settings.default_video_quality not in ALLOWED_VIDEO_QUALITIES:
+            settings.default_video_quality = "best"
         if settings.ffmpeg_mode not in ALLOWED_FFMPEG_MODES:
             settings.ffmpeg_mode = "system"
+        settings.settings_version = 2
         return settings
