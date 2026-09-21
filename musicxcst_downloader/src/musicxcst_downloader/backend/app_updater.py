@@ -3,9 +3,11 @@ from __future__ import annotations
 import json
 import hashlib
 import os
+import shutil
 import subprocess
 import tempfile
 import urllib.request
+from urllib.error import HTTPError
 from pathlib import Path
 from typing import Callable
 
@@ -24,13 +26,45 @@ def _version_tuple(value: str) -> tuple[int, ...]:
     return tuple(result or [0])
 
 
+def _github_token() -> str:
+    gh = shutil.which("gh")
+    if not gh:
+        return ""
+    try:
+        result = subprocess.run(
+            [gh, "auth", "token"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
+def _release_json() -> dict:
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "MusicXCST-Downloader"}
+    request = urllib.request.Request(RELEASES_URL, headers=headers)
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            return json.load(response)
+    except HTTPError as exc:
+        if exc.code not in {401, 404}:
+            raise
+        token = _github_token()
+        if not token:
+            raise RuntimeError(
+                "GitHub could not be reached. This repository is private; sign in with GitHub CLI (gh auth login) first."
+            ) from exc
+        headers["Authorization"] = f"Bearer {token}"
+        authenticated_request = urllib.request.Request(RELEASES_URL, headers=headers)
+        with urllib.request.urlopen(authenticated_request, timeout=20) as response:
+            return json.load(response)
+
+
 def check_for_update(current_version: str) -> dict:
-    request = urllib.request.Request(
-        RELEASES_URL,
-        headers={"Accept": "application/vnd.github+json", "User-Agent": "MusicXCST-Downloader"},
-    )
-    with urllib.request.urlopen(request, timeout=20) as response:
-        release = json.load(response)
+    release = _release_json()
 
     latest_version = str(release.get("tag_name") or release.get("name") or "").lstrip("vV")
     if not latest_version:

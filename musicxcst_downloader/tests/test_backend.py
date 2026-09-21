@@ -1,5 +1,8 @@
 from pathlib import Path
 import zipfile
+import json
+import io
+from urllib.error import HTTPError
 
 from musicxcst_downloader.backend.downloader import (
     DownloadWorker,
@@ -17,6 +20,7 @@ from musicxcst_downloader.backend.legal import can_download
 from musicxcst_downloader.backend.settings import SettingsStore
 from musicxcst_downloader.backend.ytdlp_updater import installed_ytdlp_version
 from musicxcst_downloader.backend.browser import normalize_browser_url
+from musicxcst_downloader.backend import app_updater
 
 
 def test_sanitize_filename_removes_windows_invalid_chars():
@@ -187,3 +191,47 @@ def test_ytdlp_version_status_is_string():
 def test_browser_url_accepts_urls_and_builds_google_search():
     assert normalize_browser_url("youtube.com/watch?v=1") == "https://youtube.com/watch?v=1"
     assert normalize_browser_url("lofi music") == "https://www.google.com/search?q=lofi+music"
+
+
+def test_app_update_retries_private_github_api_with_logged_in_cli(monkeypatch):
+    response_data = {
+        "tag_name": "v2.0.1",
+        "html_url": "https://github.com/B1progame/musicXCST-down/releases/tag/v2.0.1",
+        "assets": [],
+    }
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def read(self):
+            return json.dumps(response_data).encode("utf-8")
+
+    requests = []
+
+    def fake_urlopen(request, timeout):
+        requests.append(request)
+        if len(requests) == 1:
+            raise HTTPError(request.full_url, 404, "Not Found", {}, io.BytesIO())
+        return Response()
+
+    monkeypatch.setattr(app_updater.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(
+        app_updater,
+        "shutil",
+        type("Shutil", (), {"which": staticmethod(lambda name: "gh.exe")}),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        app_updater.subprocess,
+        "run",
+        lambda *args, **kwargs: type("Result", (), {"stdout": "github-token\n", "returncode": 0})(),
+    )
+
+    result = app_updater.check_for_update("2.0.0")
+
+    assert result["version"] == "2.0.1"
+    assert requests[1].get_header("Authorization") == "Bearer github-token"

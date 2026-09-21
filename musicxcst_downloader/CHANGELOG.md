@@ -1,5 +1,11 @@
 # MusicXCST Downloader 2.0.0
 
+## 2.0.1
+
+- Fixed application updates for private GitHub repositories by reusing the authenticated GitHub CLI session automatically.
+- Replaced the unhelpful GitHub API 404 with a clear sign-in instruction when no local GitHub CLI session is available.
+- Kept installer digest verification and the existing settings/history migration behavior unchanged.
+
 ## What is new
 
 - Download audio only, video only, or video with audio.
