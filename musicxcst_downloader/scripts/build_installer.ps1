@@ -47,6 +47,7 @@ $InstallerName = "MusicXCST-Downloader-Setup-$Version"
     --name $InstallerName `
     --icon $Icon `
     --add-data "$Payload;." `
+    --add-data "$Icon;." `
     --distpath (Join-Path $Root "dist\installer") `
     --workpath (Join-Path $Root "build\terminal-installer") `
     --specpath (Join-Path $Root "build\terminal-installer") `

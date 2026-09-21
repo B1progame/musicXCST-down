@@ -42,3 +42,9 @@ def test_installer_uses_visual_progress_and_waits_for_previous_app():
     assert "tkinter" in source
     assert "--wait-pid" in source
     assert "Circular progress" in source
+
+
+def test_installer_progress_parser_ignores_install_destination_text():
+    installer = load_installer_module()
+    assert installer.progress_from_log("Installing to C:\\Users\\test\\MusicXCST Downloader") == 4
+    assert installer.progress_from_log("Installing [#####-----] 50%") == 50

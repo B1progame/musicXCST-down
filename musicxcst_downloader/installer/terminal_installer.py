@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import argparse
+import re
 import shutil
 import subprocess
 import sys
@@ -21,6 +22,14 @@ def format_progress(percent: int) -> str:
     percent = max(0, min(100, int(percent)))
     filled = round(percent / 10)
     return f"[{'#' * filled}{'-' * (10 - filled)}] {percent}%"
+
+
+def progress_from_log(message: str) -> int:
+    """Extract progress only from formatted progress lines, never destination paths."""
+    if not message.startswith(("Extracting [", "Installing [")):
+        return 4
+    match = re.search(r"(\d+)%$", message)
+    return int(match.group(1)) if match else 4
 
 
 def _safe_extract(payload: Path, staging: Path, log: Log) -> Path:
@@ -97,6 +106,11 @@ def _payload_path() -> Path:
     return bundle_root / "payload.zip"
 
 
+def _icon_path() -> Path:
+    bundle_root = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
+    return bundle_root / "icon.ico"
+
+
 def _install_target() -> Path:
     local_app_data = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
     return local_app_data / "Programs" / APP_NAME
@@ -144,6 +158,12 @@ class VisualInstaller:
         self.root.geometry("520x420")
         self.root.resizable(False, False)
         self.root.configure(bg="#0b0e15")
+        icon = _icon_path()
+        if icon.exists():
+            try:
+                self.root.iconbitmap(str(icon))
+            except Exception:
+                pass
         self.root.protocol("WM_DELETE_WINDOW", lambda: None)
         tk.Label(self.root, text="MusicXCST", bg="#0b0e15", fg="#f7f8fb", font=("Segoe UI", 22, "bold")).pack(pady=(28, 2))
         tk.Label(self.root, text="Updating your desktop app", bg="#0b0e15", fg="#9da7b7", font=("Segoe UI", 11)).pack()
@@ -203,7 +223,7 @@ def main() -> int:
                 _payload_path(),
                 _install_target(),
                 log=lambda message: visual.update(
-                    int(message.rsplit(" ", 1)[-1].rstrip("%")) if message.startswith(("Extracting", "Installing")) else 4,
+                    progress_from_log(message),
                     "Installing update...",
                 ),
             )

@@ -1,4 +1,9 @@
-# MusicXCST Downloader 3.2.0
+# MusicXCST Downloader 3.2.1
+
+## 3.2.1
+
+- Fixed the visual installer crash caused by parsing `Downloader` from the destination path as a percentage.
+- Bundled and explicitly applied the MusicXCST icon to the installer window and taskbar entry.
 
 ## 3.2.0
 
