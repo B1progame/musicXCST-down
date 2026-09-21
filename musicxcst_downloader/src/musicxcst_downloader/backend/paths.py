@@ -41,5 +41,11 @@ def history_path() -> Path:
     return app_data_dir() / "history.json"
 
 
+def browser_storage_dir() -> Path:
+    path = app_data_dir() / "browser"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 def frontend_index() -> Path:
     return Path(__file__).resolve().parents[1] / "frontend" / "index.html"

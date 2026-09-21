@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import threading
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -29,27 +30,32 @@ class Settings:
 class SettingsStore:
     def __init__(self, path: Path | None = None) -> None:
         self.path = path or settings_path()
+        self._lock = threading.RLock()
 
     def load(self) -> Settings:
-        if not self.path.exists():
-            return Settings()
-        try:
-            data = json.loads(self.path.read_text(encoding="utf-8"))
-            allowed = {field: data.get(field) for field in Settings.__dataclass_fields__}
-            return self._normalize(Settings(**{k: v for k, v in allowed.items() if v is not None}))
-        except Exception:
-            return Settings()
+        with self._lock:
+            if not self.path.exists():
+                return Settings()
+            try:
+                data = json.loads(self.path.read_text(encoding="utf-8"))
+                allowed = {field: data.get(field) for field in Settings.__dataclass_fields__}
+                return self._normalize(Settings(**{k: v for k, v in allowed.items() if v is not None}))
+            except Exception:
+                return Settings()
 
     def save(self, settings: Settings | dict[str, Any]) -> Settings:
-        if isinstance(settings, dict):
-            current = asdict(self.load())
-            current.update({k: v for k, v in settings.items() if k in current})
-            settings_obj = self._normalize(Settings(**current))
-        else:
-            settings_obj = self._normalize(settings)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(json.dumps(asdict(settings_obj), indent=2), encoding="utf-8")
-        return settings_obj
+        with self._lock:
+            if isinstance(settings, dict):
+                current = asdict(self.load())
+                current.update({k: v for k, v in settings.items() if k in current})
+                settings_obj = self._normalize(Settings(**current))
+            else:
+                settings_obj = self._normalize(settings)
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            temp_path = self.path.with_suffix(f"{self.path.suffix}.tmp")
+            temp_path.write_text(json.dumps(asdict(settings_obj), indent=2), encoding="utf-8")
+            temp_path.replace(self.path)
+            return settings_obj
 
     @staticmethod
     def _normalize(settings: Settings) -> Settings:

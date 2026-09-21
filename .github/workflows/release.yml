@@ -1,0 +1,48 @@
+name: Build and publish release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Inno Setup
+        shell: powershell
+        run: choco install innosetup --no-progress --yes
+
+      - name: Build installer
+        shell: powershell
+        working-directory: musicxcst_downloader
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
+        run: |
+          $version = $env:RELEASE_VERSION.TrimStart('v')
+          .\scripts\build_exe.ps1
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$version" "installer\MusicXCST-Downloader.iss"
+
+      - name: Publish GitHub release
+        shell: powershell
+        working-directory: musicxcst_downloader
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ github.ref_name }}
+        run: |
+          $version = $env:RELEASE_VERSION.TrimStart('v')
+          gh release create $env:RELEASE_VERSION `
+            "dist/installer/MusicXCST-Downloader-Setup-$version.exe" `
+            --title "MusicXCST Downloader $version" `
+            --generate-notes

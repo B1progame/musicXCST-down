@@ -1,5 +1,7 @@
 #define MyAppName "MusicXCST Downloader"
-#define MyAppVersion "1.0.6"
+#ifndef MyAppVersion
+  #define MyAppVersion "0.0.0"
+#endif
 #define MyAppPublisher "B1progame"
 #define MyAppExeName "MusicXCST Downloader.exe"
 
@@ -7,19 +9,25 @@
 AppId={{7E2B0C7B-2C89-49E2-A49E-FD9547DB8E1C}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={localappdata}\Programs\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
+CloseApplications=yes
+RestartApplications=no
+CloseApplicationsFilter={#MyAppExeName}
 OutputDir=..\dist\installer
-OutputBaseFilename=MusicXCST-Downloader-Setup
+OutputBaseFilename=MusicXCST-Downloader-Setup-{#MyAppVersion}
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 SetupIconFile=..\src\musicxcst_downloader\frontend\assets\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 LicenseFile=..\LICENSE
+VersionInfoVersion={#MyAppVersion}
+VersionInfoProductVersion={#MyAppVersion}
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

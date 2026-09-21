@@ -13,13 +13,13 @@ This app is not the Minecraft mod and is not integrated into any Minecraft mod j
 - Packaging: PyInstaller one-folder build
 - Installer: optional Inno Setup script
 - Network styling: no online CSS or JS CDNs
-- Privacy: no telemetry, accounts, cookies, credential import, or credential storage
+- Privacy: no telemetry or credential export; Web tab site data stays in its local browser profile
 
 ## Legal use warning
 
 Use this tool only for music or audio you own, have permission to use, or are legally allowed to download. You alone are responsible for what you download; B1progame and MusicXCST Downloader are not responsible for downloads of music you do not own or have rights to use.
 
-The app does not bypass DRM, paywalls, logins, private content, age restrictions, geo-blocks, or platform protections. It does not use cookies, browser profile extraction, account tokens, credential import, telemetry, accounts, or credential storage.
+The app does not bypass DRM, paywalls, logins, private content, age restrictions, geo-blocks, or platform protections. The Web tab may store normal browser cookies locally, but downloads do not extract browser profiles, account tokens, or login credentials.
 
 ## Features
 
@@ -107,7 +107,7 @@ cd musicxcst_downloader
 Output:
 
 ```text
-dist\installer\MusicXCST-Downloader-Setup.exe
+dist\installer\MusicXCST-Downloader-Setup-<version>.exe
 ```
 
 ## Local data

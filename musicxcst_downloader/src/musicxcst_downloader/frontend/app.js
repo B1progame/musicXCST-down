@@ -15,6 +15,8 @@ const state = {
   historyRenderFrame: 0,
   settingsSaveTimer: 0,
   settingsSaving: false,
+  settingsEditVersion: 0,
+  browserOpen: false,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -40,6 +42,27 @@ const qualityOptions = [
 const audioFormats = new Set(formatOptions.map(([value]) => value));
 const audioQualities = new Set(qualityOptions.map(([value]) => value));
 const historyRenderLimit = 80;
+
+function toCamelCase(value) {
+  return String(value).replace(/_([a-z])/g, (_, char) => char.toUpperCase());
+}
+
+function getApiMethod(name) {
+  const bridge = api();
+  if (!bridge) return null;
+  if (typeof bridge[name] === "function") return bridge[name].bind(bridge);
+  const camelName = toCamelCase(name);
+  if (typeof bridge[camelName] === "function") return bridge[camelName].bind(bridge);
+  return null;
+}
+
+async function callApi(name, ...args) {
+  const method = getApiMethod(name);
+  if (method) return method(...args);
+  const invoke = getApiMethod("invoke");
+  if (invoke) return invoke(name, args);
+  throw new Error(`API method '${name}' is not available. Reinstall the current app build.`);
+}
 
 function normalizeFormat(value) {
   return audioFormats.has(value) ? value : "mp3";
@@ -70,6 +93,23 @@ function applyAccentColor(value) {
   document.documentElement.style.setProperty("--accent", accent);
   document.documentElement.style.setProperty("--accent-rgb", rgb.join(", "));
   document.documentElement.style.setProperty("--accent-contrast", contrastForRgb(rgb));
+}
+
+function normalizeAccentColor(value) {
+  const text = String(value || "").trim();
+  if (!/^#?[a-f\d]{6}$/i.test(text)) return "#56f0ff";
+  return text.startsWith("#") ? text : `#${text}`;
+}
+
+function describeError(error) {
+  if (!error) return "Unknown error";
+  if (typeof error === "string") return error;
+  try {
+    if (typeof error.message === "string" && error.message.trim()) return error.message;
+  } catch (_) {
+    return "Unexpected bridge error";
+  }
+  return "Unexpected bridge error";
 }
 
 function setStatus(text, detail = "--") {
@@ -119,7 +159,22 @@ function renderAnalysis(data) {
   $("filenameInput").value = data.suggested_filename || `${data.safe_filename || "download"}.${extensionForFormat()}`;
   $("longWarning").classList.toggle("hidden", !data.long_warning);
   $("thumb").classList.toggle("empty", !data.thumbnail);
-  $("thumb").innerHTML = data.thumbnail ? `<img src="${data.thumbnail}" alt="">` : "No thumbnail";
+  $("thumb").replaceChildren();
+  if (data.thumbnail) {
+    const image = document.createElement("img");
+    image.alt = "Cover artwork";
+    image.loading = "lazy";
+    image.decoding = "async";
+    image.referrerPolicy = "no-referrer";
+    image.addEventListener("error", () => {
+      $("thumb").classList.add("empty");
+      $("thumb").textContent = "Artwork unavailable";
+    }, { once: true });
+    image.src = data.thumbnail;
+    $("thumb").append(image);
+  } else {
+    $("thumb").textContent = "No thumbnail";
+  }
   $("formatsList").innerHTML = (data.available_formats || []).slice(0, 32).map((f) => {
     const rate = f.tbr ? `${Math.round(f.tbr)}k` : "";
     const sampleRate = f.asr ? `${f.asr} Hz` : "";
@@ -163,25 +218,26 @@ async function copyText(text) {
 
 async function openHistory(index) {
   const item = state.history[index];
-  if (item?.output_path) await api().open_folder(item.output_path);
+  if (item?.output_path) await callApi("open_folder", item.output_path);
 }
 
 async function removeHistory(index) {
-  renderHistory(await api().remove_history(index));
+  renderHistory(await callApi("remove_history", index));
 }
 
-function fillSettings(settings) {
+function fillSettings(settings, { updateSettingsForm = true } = {}) {
   state.settings = settings;
   const defaultFormat = normalizeFormat(settings.default_format);
   const defaultQuality = normalizeQuality(settings.default_quality);
   $("folderInput").value = settings.default_output_folder || "";
-  $("setOutput").value = settings.default_output_folder || "";
   $("formatSelect").value = defaultFormat;
   $("qualitySelect").value = defaultQuality;
+  applyAccentColor(settings.accent_color);
+  if (!updateSettingsForm) return;
+  $("setOutput").value = settings.default_output_folder || "";
   $("setFormat").value = defaultFormat;
   $("setQuality").value = defaultQuality;
   $("setAccent").value = settings.accent_color || "#56f0ff";
-  applyAccentColor(settings.accent_color);
   $("setFfmpegMode").value = settings.ffmpeg_mode || "system";
   $("setFfmpegPath").value = settings.custom_ffmpeg_path || "";
   $("setMaxDuration").value = settings.max_duration_warning_minutes || 60;
@@ -197,20 +253,26 @@ function setupSettingsSelects() {
 }
 
 async function saveSettingsPatch(patch) {
+  const saveVersion = state.settingsEditVersion;
   state.settingsSaving = true;
   markSettingsSaving();
   try {
-    fillSettings(await api().save_settings(patch));
-    markSettingsSaved();
+    const savedSettings = await callApi("save_settings", patch);
+    const hasNewerEdits = state.settingsEditVersion !== saveVersion;
+    fillSettings(savedSettings, { updateSettingsForm: !hasNewerEdits });
+    if (hasNewerEdits) {
+      markSettingsDirty(false);
+    } else {
+      markSettingsSaved();
+    }
     return true;
   } catch (error) {
-    state.settingsDirty = true;
-    const indicator = $("settingsSaveState");
-    if (indicator) indicator.textContent = "Save failed";
-    setStatus(`Settings save failed: ${error.message || error}`);
+    markSettingsDirty(false, "Save failed");
+    setStatus(`Settings save failed: ${describeError(error)}`);
     return false;
   } finally {
     state.settingsSaving = false;
+    if (state.settingsDirty) scheduleSettingsSave();
   }
 }
 
@@ -219,7 +281,7 @@ function collectSettingsPatch() {
     default_output_folder: $("setOutput").value,
     default_format: $("setFormat").value,
     default_quality: $("setQuality").value,
-    accent_color: $("setAccent").value,
+    accent_color: normalizeAccentColor($("setAccent").value),
     ffmpeg_mode: $("setFfmpegMode").value,
     custom_ffmpeg_path: $("setFfmpegPath").value,
     max_duration_warning_minutes: Number($("setMaxDuration").value || 60),
@@ -228,10 +290,11 @@ function collectSettingsPatch() {
   };
 }
 
-function markSettingsDirty() {
+function markSettingsDirty(incrementVersion = true, label = "Unsaved changes") {
+  if (incrementVersion) state.settingsEditVersion += 1;
   state.settingsDirty = true;
   const indicator = $("settingsSaveState");
-  if (indicator) indicator.textContent = "Unsaved changes";
+  if (indicator) indicator.textContent = label;
 }
 
 function markSettingsSaving() {
@@ -252,6 +315,29 @@ function scheduleSettingsSave() {
       saveSettingsPatch(collectSettingsPatch());
     }
   }, 700);
+}
+
+function browserBounds() {
+  const viewport = $("webViewport");
+  if (!viewport) return null;
+  const rect = viewport.getBoundingClientRect();
+  return {
+    x: Math.round(rect.left),
+    y: Math.round(rect.top),
+    width: Math.round(rect.width),
+    height: Math.round(rect.height),
+  };
+}
+
+async function syncBrowserLayout() {
+  const visible = state.activePage === "web";
+  const bounds = browserBounds();
+  if (!bounds) return;
+  try {
+    await callApi("browser_layout", bounds, visible);
+  } catch (error) {
+    if (visible) setStatus(`Browser layout failed: ${describeError(error)}`);
+  }
 }
 
 function queueHistoryRender() {
@@ -305,8 +391,40 @@ window.MusicXCST = {
       if (state.activePage === "history") renderHistory();
     }
     if (event.type === "settings") {
-      fillSettings(event.settings || {});
-      markSettingsSaved();
+      const settings = event.settings || {};
+      const preserveForm = state.activePage === "settings" && (state.settingsDirty || state.settingsSaving);
+      fillSettings(settings, { updateSettingsForm: !preserveForm });
+      if (!preserveForm) markSettingsSaved();
+    }
+    if (event.type === "ytdlp_update") {
+      setYtdlpUpdateState(Boolean(event.running), event.running ? "Updating..." : "Update yt-dlp");
+      if (event.version) renderYtdlp({ version: event.version });
+      $("ytdlpStatus").textContent = event.status || "yt-dlp update finished.";
+      setStatus(event.status || "yt-dlp update finished.");
+    }
+    if (event.type === "app_update") {
+      setAppUpdateState(Boolean(event.running), event.running ? "Updating..." : "Update App");
+      if (event.version && event.available === false) {
+        $("appUpdateStatus").textContent = `Current version: ${event.version} (up to date)`;
+      } else if (event.status) {
+        $("appUpdateStatus").textContent = event.status;
+      }
+      setStatus(event.status || "Application update finished.");
+    }
+    if (event.type === "browser_status") {
+      const webState = $("webState");
+      state.browserOpen = Boolean(event.open);
+      webState.textContent = event.error || (event.loading ? "Loading..." : event.open ? "Ready" : "Browser closed");
+      webState.classList.toggle("online", Boolean(event.open));
+      if (event.url) $("webAddress").value = event.url;
+      $("webBackBtn").disabled = event.canBack === false;
+      $("webForwardBtn").disabled = event.canForward === false;
+    }
+    if (event.type === "browser_send_download") {
+      $("urlInput").value = event.url || "";
+      switchPage("download");
+      $("urlInput").focus();
+      setStatus("Link copied from Web. Ready to analyze.");
     }
     if (event.type === "ffmpeg") {
       renderFfmpeg(event.status);
@@ -326,12 +444,14 @@ window.MusicXCST = {
 
 async function init() {
   setupSettingsSelects();
-  const boot = await api().startup();
+  const boot = await callApi("startup");
   $("legalNotice").textContent = boot.legalNotice;
   fillSettings(boot.settings);
   state.history = boot.history || [];
   if (state.activePage === "history") renderHistory();
   renderFfmpeg(boot.ffmpeg);
+  renderYtdlp(boot.ytdlp);
+  renderAppVersion(boot.appVersion);
   $("firstRun").classList.toggle("hidden", Boolean(boot.settings.first_run_confirmed));
 }
 
@@ -342,6 +462,26 @@ function renderFfmpeg(info) {
 
 function setFfmpegDownloadState(running, label = "Download App FFmpeg") {
   const button = $("downloadFfmpegBtn");
+  button.disabled = running;
+  button.textContent = label;
+}
+
+function renderYtdlp(info) {
+  $("ytdlpStatus").textContent = `Installed version: ${info?.version || "unknown"}`;
+}
+
+function setYtdlpUpdateState(running, label = "Update yt-dlp") {
+  const button = $("updateYtdlpBtn");
+  button.disabled = running;
+  button.textContent = label;
+}
+
+function renderAppVersion(version) {
+  $("appUpdateStatus").textContent = `Current version: ${version || "unknown"}`;
+}
+
+function setAppUpdateState(running, label = "Update App") {
+  const button = $("updateAppBtn");
   button.disabled = running;
   button.textContent = label;
 }
@@ -364,6 +504,8 @@ async function switchPage(pageName) {
   nextPage?.removeAttribute("hidden");
   nextPage?.classList.add("active");
   state.activePage = pageName;
+
+  await syncBrowserLayout();
 
   if (pageName === "history") queueHistoryRender();
 }
@@ -399,7 +541,7 @@ document.addEventListener("DOMContentLoaded", () => {
   $("analyzeBtn").addEventListener("click", async () => {
     setProgress(0);
     setStatus("Starting analysis...");
-    const result = await api().analyze($("urlInput").value.trim());
+    const result = await callApi("analyze", $("urlInput").value.trim());
     if (!result.ok) setStatus(result.error);
   });
 
@@ -409,15 +551,39 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   $("folderBtn").addEventListener("click", async () => {
-    const folder = await api().choose_output_folder();
-    if (folder) $("folderInput").value = folder;
+    const folder = await callApi("choose_output_folder");
+    if (folder) {
+      $("folderInput").value = folder;
+      $("setOutput").value = folder;
+      await saveSettingsPatch({ default_output_folder: folder });
+      setStatus("Default output folder saved.");
+    }
+  });
+
+  $("setOutputBtn").addEventListener("click", async () => {
+    const chooseAndSaveDefault = getApiMethod("choose_default_output_folder");
+    if (chooseAndSaveDefault) {
+      const result = await chooseAndSaveDefault();
+      if (result?.ok) {
+        fillSettings(result.settings || {}, { updateSettingsForm: true });
+        markSettingsSaved();
+        setStatus("Default output folder saved.");
+      }
+      return;
+    }
+    const folder = await callApi("choose_output_folder");
+    if (!folder) return;
+    $("setOutput").value = folder;
+    $("folderInput").value = folder;
+    const ok = await saveSettingsPatch({ default_output_folder: folder });
+    setStatus(ok ? "Default output folder saved." : "Settings save failed.");
   });
 
   async function performDownload(overwrite = false) {
     ensureFilenameExtension();
     $("downloadBtn").disabled = true;
     setProgress(0, { status: "Starting download...", stage: "Starting", detail: "--" });
-    const result = await api().download({
+    const result = await callApi("download", {
       url: $("urlInput").value.trim(),
       format: $("formatSelect").value,
       quality: $("qualitySelect").value,
@@ -439,39 +605,103 @@ document.addEventListener("DOMContentLoaded", () => {
 
   $("downloadBtn").addEventListener("click", () => performDownload(false));
 
+  const openWeb = async (value = $("webAddress").value) => {
+    const result = await callApi("browser_open", value);
+    if (result?.url) $("webAddress").value = result.url;
+    if (!result?.ok) setStatus(result?.error || "Could not open browser.");
+    await syncBrowserLayout();
+  };
+  $("webOpenBtn").addEventListener("click", () => openWeb());
+  $("webAddress").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") openWeb();
+  });
+  $("webHomeBtn").addEventListener("click", async () => {
+    const result = await callApi("browser_home");
+    if (result?.url) $("webAddress").value = result.url;
+  });
+  $("webBackBtn").addEventListener("click", () => callApi("browser_back"));
+  $("webForwardBtn").addEventListener("click", () => callApi("browser_forward"));
+  $("webReloadBtn").addEventListener("click", () => callApi("browser_reload"));
+  $("webStopBtn").addEventListener("click", () => callApi("browser_stop"));
+  $("webYoutubeBtn").addEventListener("click", () => openWeb("https://www.youtube.com/"));
+  $("webYoutubeMusicBtn").addEventListener("click", () => openWeb("https://music.youtube.com/"));
+  $("webDownloadBtn").addEventListener("click", async () => {
+    const result = await callApi("browser_send_current_to_download");
+    if (!result?.ok) setStatus(result?.error || "Could not send this page to Download.");
+  });
+  $("webZoomOutBtn").addEventListener("click", async () => {
+    const result = await callApi("browser_zoom", -0.1);
+    if (result?.zoom) $("webZoomLabel").textContent = `${result.zoom}%`;
+  });
+  $("webZoomInBtn").addEventListener("click", async () => {
+    const result = await callApi("browser_zoom", 0.1);
+    if (result?.zoom) $("webZoomLabel").textContent = `${result.zoom}%`;
+  });
+  $("webFindBtn").addEventListener("click", async () => {
+    const text = window.prompt("Find on this page:", "");
+    if (text) await callApi("browser_find", text);
+  });
+  $("webCopyBtn").addEventListener("click", async () => {
+    const result = await callApi("browser_copy_url");
+    if (result?.url) await copyText(result.url);
+  });
+  $("webExternalBtn").addEventListener("click", () => callApi("browser_open_external"));
+
+  const webResizeObserver = new ResizeObserver(() => {
+    if (state.activePage === "web") syncBrowserLayout();
+  });
+  webResizeObserver.observe($("webViewport"));
+  window.addEventListener("resize", () => {
+    if (state.activePage === "web") syncBrowserLayout();
+  });
+
   $("cancelBtn").addEventListener("click", async () => {
-    const result = await api().cancel_download();
+    const result = await callApi("cancel_download");
     if (!result.ok) setStatus(result.error);
   });
 
   $("copyPathBtn").addEventListener("click", () => copyText($("outputPath").value));
-  $("openCurrentFolder").addEventListener("click", () => api().open_folder($("outputPath").value || $("folderInput").value));
-  $("clearHistoryBtn").addEventListener("click", async () => renderHistory(await api().clear_history()));
+  $("openCurrentFolder").addEventListener("click", () => callApi("open_folder", $("outputPath").value || $("folderInput").value));
+  $("clearHistoryBtn").addEventListener("click", async () => renderHistory(await callApi("clear_history")));
   elements.historyList.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-history-action]");
     if (!button) return;
     const index = Number(button.dataset.historyIndex);
     const item = state.history[index];
     if (!item) return;
-    if (button.dataset.historyAction === "open") await api().open_folder(item.output_path);
+    if (button.dataset.historyAction === "open") await callApi("open_folder", item.output_path);
     if (button.dataset.historyAction === "copy") await copyText(item.output_path);
-    if (button.dataset.historyAction === "remove") renderHistory(await api().remove_history(index));
+    if (button.dataset.historyAction === "remove") renderHistory(await callApi("remove_history", index));
   });
   document.querySelectorAll("[data-external-url]").forEach((link) => {
     link.addEventListener("click", async (event) => {
       event.preventDefault();
-      const result = await api().open_external_url(event.currentTarget.dataset.externalUrl);
+      const result = await callApi("open_external_url", event.currentTarget.dataset.externalUrl);
       if (!result.ok) setStatus(`Could not open link: ${result.error}`);
     });
   });
 
-  ["setOutput", "setFormat", "setQuality", "setAccent", "setFfmpegMode", "setFfmpegPath", "setMaxDuration", "setLogging"].forEach((id) => {
+  ["setFormat", "setQuality", "setFfmpegMode", "setLogging"].forEach((id) => {
+    $(id).addEventListener("change", () => {
+      markSettingsDirty();
+      scheduleSettingsSave();
+    });
+  });
+  ["setOutput", "setFfmpegPath", "setMaxDuration"].forEach((id) => {
+    $(id).addEventListener("input", () => {
+      markSettingsDirty();
+      scheduleSettingsSave();
+    });
     $(id).addEventListener("change", () => {
       markSettingsDirty();
       scheduleSettingsSave();
     });
   });
   $("setAccent").addEventListener("input", (event) => {
+    applyAccentColor(event.target.value);
+  });
+  $("setAccent").addEventListener("change", (event) => {
+    event.target.value = normalizeAccentColor(event.target.value);
     applyAccentColor(event.target.value);
     markSettingsDirty();
     scheduleSettingsSave();
@@ -482,7 +712,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   $("selectFfmpegBtn").addEventListener("click", async () => {
-    const path = await api().select_ffmpeg();
+    const path = await callApi("select_ffmpeg");
     if (path) {
       $("setFfmpegPath").value = path;
       markSettingsDirty();
@@ -492,14 +722,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   $("settingsSaveBtn").addEventListener("click", async () => {
     clearTimeout(state.settingsSaveTimer);
-    await saveSettingsPatch(collectSettingsPatch());
-    setStatus("Settings saved.");
+    const ok = await saveSettingsPatch(collectSettingsPatch());
+    setStatus(ok ? "Settings saved." : "Settings save failed.");
   });
   $("downloadFfmpegBtn").addEventListener("click", async () => {
     clearTimeout(state.settingsSaveTimer);
     if (state.settingsDirty) await saveSettingsPatch(collectSettingsPatch());
     setFfmpegDownloadState(true, "Starting...");
-    const result = await api().download_managed_ffmpeg();
+    const result = await callApi("download_managed_ffmpeg");
     if (!result.ok) {
       setFfmpegDownloadState(false);
       setStatus(result.error);
@@ -507,9 +737,31 @@ document.addEventListener("DOMContentLoaded", () => {
       setStatus(result.status);
     }
   });
-  $("testFfmpegBtn").addEventListener("click", async () => renderFfmpeg(await api().test_ffmpeg($("setFfmpegMode").value, $("setFfmpegPath").value)));
+  $("updateYtdlpBtn").addEventListener("click", async () => {
+    setYtdlpUpdateState(true, "Starting...");
+    const result = await callApi("update_ytdlp");
+    if (!result.ok) {
+      setYtdlpUpdateState(false);
+      $("ytdlpStatus").textContent = result.error;
+      setStatus(result.error);
+    } else {
+      setStatus(result.status);
+    }
+  });
+  $("updateAppBtn").addEventListener("click", async () => {
+    setAppUpdateState(true, "Checking...");
+    const result = await callApi("update_app");
+    if (!result.ok) {
+      setAppUpdateState(false);
+      $("appUpdateStatus").textContent = result.error;
+      setStatus(result.error);
+    } else {
+      setStatus(result.status);
+    }
+  });
+  $("testFfmpegBtn").addEventListener("click", async () => renderFfmpeg(await callApi("test_ffmpeg", $("setFfmpegMode").value, $("setFfmpegPath").value)));
   $("resetSettingsBtn").addEventListener("click", async () => {
-    fillSettings(await api().reset_settings());
+    fillSettings(await callApi("reset_settings"));
     markSettingsSaved();
     setStatus("Settings reset.");
   });
@@ -517,7 +769,23 @@ document.addEventListener("DOMContentLoaded", () => {
   document.addEventListener("keydown", (event) => {
     if (event.ctrlKey && event.key.toLowerCase() === "l") {
       event.preventDefault();
-      $("urlInput").focus();
+      (state.activePage === "web" ? $("webAddress") : $("urlInput")).focus();
+    }
+    if (state.activePage === "web" && event.ctrlKey && event.key.toLowerCase() === "r") {
+      event.preventDefault();
+      $("webReloadBtn").click();
+    }
+    if (state.activePage === "web" && event.ctrlKey && event.key.toLowerCase() === "f") {
+      event.preventDefault();
+      $("webFindBtn").click();
+    }
+    if (state.activePage === "web" && event.altKey && event.key === "ArrowLeft") {
+      event.preventDefault();
+      $("webBackBtn").click();
+    }
+    if (state.activePage === "web" && event.altKey && event.key === "ArrowRight") {
+      event.preventDefault();
+      $("webForwardBtn").click();
     }
     if (event.ctrlKey && event.key.toLowerCase() === "o") {
       event.preventDefault();
@@ -528,6 +796,7 @@ document.addEventListener("DOMContentLoaded", () => {
       (state.analyzing || $("metaTitle").textContent !== "--" ? $("downloadBtn") : $("analyzeBtn")).click();
     }
     if (event.key === "Escape" && state.downloading) $("cancelBtn").click();
+    if (state.activePage === "web" && event.key === "Escape") $("webStopBtn").click();
   });
 
   init();

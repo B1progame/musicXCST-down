@@ -14,6 +14,8 @@ from musicxcst_downloader.backend.external import is_safe_external_url, open_ext
 from musicxcst_downloader.backend.history import HistoryItem, HistoryStore
 from musicxcst_downloader.backend.legal import can_download
 from musicxcst_downloader.backend.settings import SettingsStore
+from musicxcst_downloader.backend.ytdlp_updater import installed_ytdlp_version
+from musicxcst_downloader.backend.browser import normalize_browser_url
 
 
 def test_sanitize_filename_removes_windows_invalid_chars():
@@ -113,3 +115,13 @@ def test_external_link_validation_and_open(monkeypatch):
     assert open_external_url("https://github.com/B1progame/musicXCST")["ok"]
     assert opened == ["https://github.com/B1progame/musicXCST"]
     assert not open_external_url("javascript:alert(1)")["ok"]
+
+
+def test_ytdlp_version_status_is_string():
+    assert isinstance(installed_ytdlp_version(), str)
+    assert installed_ytdlp_version() != "not installed"
+
+
+def test_browser_url_accepts_urls_and_builds_google_search():
+    assert normalize_browser_url("youtube.com/watch?v=1") == "https://youtube.com/watch?v=1"
+    assert normalize_browser_url("lofi music") == "https://www.google.com/search?q=lofi+music"

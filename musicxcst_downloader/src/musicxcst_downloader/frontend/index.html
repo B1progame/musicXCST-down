@@ -27,6 +27,7 @@
         </div>
         <nav>
           <button class="nav-item active" data-page="download">Download</button>
+          <button class="nav-item" data-page="web">Web</button>
           <button class="nav-item" data-page="history">History</button>
           <button class="nav-item" data-page="settings">Settings</button>
           <button class="nav-item" data-page="about">About</button>
@@ -85,7 +86,7 @@
                 <span>Output folder</span>
                 <div class="inline-field">
                   <input id="folderInput" type="text" />
-                  <button id="folderBtn" class="icon-button" title="Choose output folder">...</button>
+                  <button id="folderBtn" class="icon-button" type="button" title="Choose output folder">...</button>
                 </div>
               </label>
 
@@ -146,6 +147,44 @@
           </div>
         </section>
 
+        <section id="page-web" class="page">
+          <section class="panel web-panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Web</h2>
+                <p class="lead">A full dark browser, built into MusicXCST.</p>
+              </div>
+              <span id="webState" class="web-state">Browser closed</span>
+            </div>
+            <div class="web-toolbar">
+              <button id="webBackBtn" class="icon-button browser-icon" type="button" title="Back" aria-label="Back"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+              <button id="webForwardBtn" class="icon-button browser-icon" type="button" title="Forward" aria-label="Forward"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+              <button id="webReloadBtn" class="icon-button browser-icon" type="button" title="Reload" aria-label="Reload"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7"/></svg></button>
+              <button id="webStopBtn" class="icon-button browser-icon" type="button" title="Stop loading" aria-label="Stop loading"><svg viewBox="0 0 24 24"><path d="M7 7h10v10H7z"/></svg></button>
+              <button id="webHomeBtn" class="icon-button browser-icon" type="button" title="Google home" aria-label="Home"><svg viewBox="0 0 24 24"><path d="m3 11 9-8 9 8M5 10v10h14V10M9 20v-6h6v6"/></svg></button>
+              <input id="webAddress" type="text" value="https://www.google.com/" placeholder="Search Google or enter a URL" />
+              <button id="webOpenBtn" class="primary browser-go" type="button" title="Go" aria-label="Go"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+              <button id="webDownloadBtn" class="web-download browser-icon" type="button" title="Send current YouTube page to Download" aria-label="Send current page to Download"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 21h14"/></svg></button>
+            </div>
+            <div class="web-tools">
+              <button id="webYoutubeBtn" class="ghost browser-tool" type="button" title="YouTube"><svg viewBox="0 0 24 24"><path d="M21 12c0-3-.3-5-.8-6-.4-.7-1-1.1-1.8-1.2C16.8 4.5 14.7 4.5 12 4.5s-4.8 0-6.4.3C4.8 4.9 4.2 5.3 3.8 6 3.3 7 3 9 3 12s.3 5 .8 6c.4.7 1 1.1 1.8 1.2 1.6.3 3.7.3 6.4.3s4.8 0 6.4-.3c.8-.1 1.4-.5 1.8-1.2.5-1 .8-3 .8-6Z"/><path d="m10 9 5 3-5 3Z"/></svg><span>YouTube</span></button>
+              <button id="webYoutubeMusicBtn" class="ghost browser-tool" type="button" title="YouTube Music"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="m11 10 4 2-4 2Z"/></svg><span>Music</span></button>
+              <button id="webFindBtn" class="ghost browser-tool" type="button" title="Find on page"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><span>Find</span></button>
+              <button id="webZoomOutBtn" class="icon-button browser-icon" type="button" title="Zoom out" aria-label="Zoom out"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M7.5 10.5h6m2.5 5.5 5 5"/></svg></button>
+              <span id="webZoomLabel" class="web-zoom">100%</span>
+              <button id="webZoomInBtn" class="icon-button browser-icon" type="button" title="Zoom in" aria-label="Zoom in"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M7.5 10.5h6m-3-3v6m5.5 2.5 5 5"/></svg></button>
+              <button id="webCopyBtn" class="icon-button browser-icon" type="button" title="Copy address" aria-label="Copy address"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button>
+              <button id="webExternalBtn" class="icon-button browser-icon" type="button" title="Open in default browser" aria-label="Open externally"><svg viewBox="0 0 24 24"><path d="M14 4h6v6m0-6-9 9"/><path d="M18 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6"/></svg></button>
+            </div>
+            <div id="webViewport" class="web-viewport">
+              <div class="web-placeholder">
+                <strong>MusicXCST Web</strong>
+                <span>Enter an address or search above.</span>
+              </div>
+            </div>
+          </section>
+        </section>
+
         <section id="page-history" class="page">
           <section class="panel">
             <div class="panel-heading">
@@ -162,16 +201,16 @@
               <h2>Settings</h2>
               <div class="settings-actions">
                 <span id="settingsSaveState">Saved</span>
-                <button id="settingsSaveBtn" class="primary">Save Settings</button>
-                <button id="resetSettingsBtn" class="ghost danger">Reset Settings</button>
+                <button id="settingsSaveBtn" class="primary" type="button">Save Settings</button>
+                <button id="resetSettingsBtn" class="ghost danger" type="button">Reset Settings</button>
               </div>
             </div>
-            <label class="field"><span>Default output folder</span><input id="setOutput" /></label>
+            <label class="field"><span>Default output folder</span><div class="inline-field"><input id="setOutput" /><button id="setOutputBtn" class="icon-button" type="button" title="Choose default output folder">...</button></div></label>
             <label class="field"><span>Default format</span><select id="setFormat"></select></label>
             <label class="field"><span>Default quality</span><select id="setQuality"></select></label>
             <label class="field"><span>Theme accent color</span><input id="setAccent" type="color" /></label>
             <label class="field"><span>FFmpeg mode</span><select id="setFfmpegMode"><option value="system">system</option><option value="custom">custom path</option><option value="managed">managed</option></select></label>
-            <label class="field"><span>Custom FFmpeg path</span><div class="inline-field"><input id="setFfmpegPath" /><button id="selectFfmpegBtn" class="icon-button">...</button></div></label>
+            <label class="field"><span>Custom FFmpeg path</span><div class="inline-field"><input id="setFfmpegPath" /><button id="selectFfmpegBtn" class="icon-button" type="button">...</button></div></label>
             <label class="field"><span>Max duration warning (minutes)</span><input id="setMaxDuration" type="number" min="1" /></label>
             <label class="field"><span>Logging level</span><select id="setLogging"><option>INFO</option><option>DEBUG</option><option>WARNING</option><option>ERROR</option></select></label>
             <label class="toggle"><input id="setOpenAfter" type="checkbox" /><span>Open folder after download</span></label>
@@ -184,6 +223,22 @@
               </div>
               <p class="mini-note">Managed FFmpeg is stored only in this app's data folder and is removed by the installer uninstall.</p>
               <pre id="ffmpegStatus">Not tested</pre>
+            </div>
+            <div class="ffmpeg-card">
+              <h3>Library Updates</h3>
+              <p>Update yt-dlp manually when YouTube changes. Nothing is downloaded automatically when the app starts.</p>
+              <div class="actions compact">
+                <button id="updateYtdlpBtn" class="secondary" type="button">Update yt-dlp</button>
+              </div>
+              <pre id="ytdlpStatus">Installed version: unknown</pre>
+            </div>
+            <div class="ffmpeg-card">
+              <h3>Application Updates</h3>
+              <p>Check GitHub and install the newest Windows release directly from the app.</p>
+              <div class="actions compact">
+                <button id="updateAppBtn" class="primary" type="button">Update App</button>
+              </div>
+              <pre id="appUpdateStatus">Current version: unknown</pre>
             </div>
           </section>
         </section>
@@ -234,7 +289,7 @@
 
             <article class="panel about-card">
               <h3>Privacy</h3>
-              <p>No telemetry, accounts, cookies, browser profile extraction, account tokens, credential import, or credential storage.</p>
+              <p>No telemetry or credential export. The Web tab stores its cookies and site preferences locally in the app browser profile; downloads do not read or export those login sessions.</p>
             </article>
 
             <article class="panel about-card wide-card">
