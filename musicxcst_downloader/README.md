@@ -33,6 +33,8 @@ The app does not bypass DRM, paywalls, logins, private content, age restrictions
 - Live download progress, speed, ETA, conversion stage, cancel support, final path, open folder, and copy path.
 - Live yt-dlp update percentage and terminal-style operation log.
 - Settings can switch between the default Classic UI and the optional Aurora 3.0 redesign, with a motion toggle.
+- The app checks GitHub in the background at startup and shows an update warning in Settings when a newer release is available; it never installs automatically.
+- Settings has an animated rainbow accent and the existing motion toggle disables it when reduced motion is preferred.
 - The yt-dlp updater uses pip directly into an app-managed override and falls back to a verified package when pip is unavailable.
 - Combined video downloads expose an explicit **Best video + best audio** choice.
 - Local settings, history, and logs under `%APPDATA%\MusicXCST Downloader`.

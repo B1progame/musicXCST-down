@@ -40,6 +40,7 @@ class Api:
         "test_ffmpeg",
         "download_managed_ffmpeg",
         "update_ytdlp",
+        "check_app_update",
         "update_app",
         "analyze",
         "download",
@@ -219,6 +220,30 @@ class Api:
                     self._window.destroy()
             except Exception as exc:
                 LOGGER.exception("Application update failed")
+                self._emit({"type": "app_update", "running": False, "ok": False, "status": str(exc)})
+
+        threading.Thread(target=run, daemon=True).start()
+        return {"ok": True, "status": "Checking GitHub for updates..."}
+
+    def check_app_update(self) -> dict:
+        """Check for a release without downloading anything or closing the app."""
+        def run() -> None:
+            try:
+                release = check_for_update(__version__)
+                self._emit({
+                    "type": "app_update",
+                    "running": False,
+                    "ok": True,
+                    "available": release["update_available"],
+                    "version": release["version"],
+                    "status": (
+                        f"Update available: {release['version']}"
+                        if release["update_available"]
+                        else f"The app is up to date ({__version__})."
+                    ),
+                })
+            except Exception as exc:
+                LOGGER.warning("Background application update check failed: %s", exc)
                 self._emit({"type": "app_update", "running": False, "ok": False, "status": str(exc)})
 
         threading.Thread(target=run, daemon=True).start()

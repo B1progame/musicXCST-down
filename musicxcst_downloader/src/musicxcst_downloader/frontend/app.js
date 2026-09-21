@@ -17,6 +17,7 @@ const state = {
   settingsSaving: false,
   settingsEditVersion: 0,
   browserOpen: false,
+  updateAvailable: false,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -513,6 +514,7 @@ window.MusicXCST = {
     }
     if (event.type === "app_update") {
       setAppUpdateState(Boolean(event.running), event.running ? "Updating..." : "Update App");
+      if (event.available !== undefined) setUpdateReminder(Boolean(event.available), event.version);
       if (event.version && event.available === false) {
         $("appUpdateStatus").textContent = `Current version: ${event.version} (up to date)`;
       } else if (event.status) {
@@ -563,6 +565,7 @@ async function init() {
   renderYtdlp(boot.ytdlp);
   renderAppVersion(boot.appVersion);
   $("firstRun").classList.toggle("hidden", Boolean(boot.settings.first_run_confirmed));
+  callApi("check_app_update").catch(() => {});
 }
 
 function renderFfmpeg(info) {
@@ -605,6 +608,19 @@ function setAppUpdateState(running, label = "Update App") {
   const button = $("updateAppBtn");
   button.disabled = running;
   button.textContent = label;
+}
+
+function setUpdateReminder(available, version = "") {
+  state.updateAvailable = available;
+  const reminder = $("updateReminder");
+  const reminderText = $("updateReminderText");
+  reminder?.classList.toggle("hidden", !available);
+  reminderText?.classList.toggle("hidden", !available);
+  if (available) {
+    const label = version ? `Update ${version} available` : "A new app update is available";
+    if (reminder) reminder.title = label;
+    if (reminderText) reminderText.textContent = label;
+  }
 }
 
 async function switchPage(pageName) {

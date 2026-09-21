@@ -1,4 +1,10 @@
-# MusicXCST Downloader 3.0.0
+# MusicXCST Downloader 3.1.0
+
+## 3.1.0
+
+- Added a background GitHub release check at startup without downloading or installing anything automatically.
+- Added an animated warning badge in Settings and a topbar reminder when a newer app release is available.
+- Added an animated rainbow Settings button with reduced-motion support.
 
 ## 3.0.0
 

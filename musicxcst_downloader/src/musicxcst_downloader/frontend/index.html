@@ -29,7 +29,7 @@
           <button class="nav-item active" data-page="download">Download</button>
           <button class="nav-item" data-page="web">Web</button>
           <button class="nav-item" data-page="history">History</button>
-          <button class="nav-item" data-page="settings">Settings</button>
+          <button class="nav-item settings-nav rainbow-settings" data-page="settings"><span>Settings</span><span id="updateReminder" class="update-reminder hidden" title="A new app update is available" aria-label="A new app update is available">⚠</span></button>
           <button class="nav-item" data-page="about">About</button>
         </nav>
         <div class="side-footer">
@@ -44,7 +44,10 @@
             <h1>MusicXCST Downloader</h1>
             <p>Fast, clean, modern music downloader.</p>
           </div>
-          <button id="openCurrentFolder" class="ghost">Open Folder</button>
+          <div class="topbar-actions">
+            <span id="updateReminderText" class="update-reminder-text hidden">New update available</span>
+            <button id="openCurrentFolder" class="ghost">Open Folder</button>
+          </div>
         </header>
 
         <section id="page-download" class="page active">
@@ -272,7 +275,7 @@
               </div>
             </div>
             <div class="about-badges">
-              <span>Version <strong id="appVersionBadge">3.0.0</strong></span>
+              <span>Version <strong id="appVersionBadge">3.1.0</strong></span>
               <span>Standalone app</span>
               <span>No telemetry</span>
               <span>Private use</span>
