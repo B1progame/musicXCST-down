@@ -13,6 +13,7 @@ ALLOWED_FORMATS = {"mp3", "ogg", "wav", "flac", "m4a", "opus", "aac", "alac", "m
 ALLOWED_AUDIO_QUALITIES = {"audio-best", "audio-small"}
 ALLOWED_VIDEO_QUALITIES = {"best", "2160", "1440", "1080", "720", "480", "360"}
 ALLOWED_FFMPEG_MODES = {"system", "custom", "managed"}
+ALLOWED_UI_THEMES = {"classic", "aurora"}
 
 
 @dataclass
@@ -29,7 +30,9 @@ class Settings:
     open_folder_after_download: bool = False
     logging_level: str = "INFO"
     first_run_confirmed: bool = False
-    settings_version: int = 2
+    ui_theme: str = "classic"
+    motion_enabled: bool = True
+    settings_version: int = 3
 
 
 class SettingsStore:
@@ -74,5 +77,7 @@ class SettingsStore:
             settings.default_video_quality = "best"
         if settings.ffmpeg_mode not in ALLOWED_FFMPEG_MODES:
             settings.ffmpeg_mode = "system"
-        settings.settings_version = 2
+        if settings.ui_theme not in ALLOWED_UI_THEMES:
+            settings.ui_theme = "classic"
+        settings.settings_version = 3
         return settings

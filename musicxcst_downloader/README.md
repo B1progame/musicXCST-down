@@ -32,6 +32,9 @@ The app does not bypass DRM, paywalls, logins, private content, age restrictions
 - Legal confirmation required before download.
 - Live download progress, speed, ETA, conversion stage, cancel support, final path, open folder, and copy path.
 - Live yt-dlp update percentage and terminal-style operation log.
+- Settings can switch between the default Classic UI and the optional Aurora 3.0 redesign, with a motion toggle.
+- The yt-dlp updater uses pip directly into an app-managed override and falls back to a verified package when pip is unavailable.
+- Combined video downloads expose an explicit **Best video + best audio** choice.
 - Local settings, history, and logs under `%APPDATA%\MusicXCST Downloader`.
 - FFmpeg detection from PATH or a custom path.
 - About page links open in the default browser.
@@ -125,6 +128,7 @@ dist\installer\MusicXCST-Downloader-Setup-<version>.exe
 - **Invalid URL:** Use a full `https://` or `http://` link.
 - **Download fails on protected content:** The app does not bypass platform protections or account-only content.
 - **Output exists:** Rename the output file before downloading.
+- **yt-dlp update fails:** Open Settings and retry **Update yt-dlp**; the app shows pip output and uses a verified fallback when pip cannot run.
 - **Conversion fails:** Verify both `ffmpeg.exe` and `ffprobe.exe` work from PATH or the selected folder.
 
 ## Disclaimer

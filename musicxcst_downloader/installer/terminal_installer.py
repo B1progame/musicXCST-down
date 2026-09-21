@@ -15,13 +15,20 @@ Log = Callable[[str], None]
 APP_NAME = "MusicXCST Downloader"
 
 
+def format_progress(percent: int) -> str:
+    percent = max(0, min(100, int(percent)))
+    filled = round(percent / 10)
+    return f"[{'#' * filled}{'-' * (10 - filled)}] {percent}%"
+
+
 def _safe_extract(payload: Path, staging: Path, log: Log) -> Path:
     root = staging / APP_NAME
     with zipfile.ZipFile(payload) as archive:
         members = archive.infolist()
         if not members:
             raise RuntimeError("Installer payload is empty.")
-        for member in members:
+        last_percent = -1
+        for index, member in enumerate(members, start=1):
             relative = Path(member.filename)
             if relative.is_absolute() or ".." in relative.parts:
                 raise RuntimeError("Installer payload contains an unsafe path.")
@@ -34,10 +41,27 @@ def _safe_extract(payload: Path, staging: Path, log: Log) -> Path:
             destination.parent.mkdir(parents=True, exist_ok=True)
             with archive.open(member) as source, destination.open("wb") as target:
                 shutil.copyfileobj(source, target)
+            percent = round(index / len(members) * 100)
+            if percent != last_percent and (percent % 5 == 0 or percent == 100):
+                log(f"Extracting {format_progress(percent)}")
+                last_percent = percent
     if not (root / f"{APP_NAME}.exe").exists():
         raise RuntimeError("Installer payload does not contain the application executable.")
     log(f"Payload extracted: {len(members)} files")
     return root
+
+
+def _copy_with_progress(source: Path, target: Path, log: Log) -> None:
+    files = [path for path in source.rglob("*") if path.is_file()]
+    last_percent = -1
+    for index, source_file in enumerate(files, start=1):
+        destination = target / source_file.relative_to(source)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_file, destination)
+        percent = round(index / len(files) * 100)
+        if percent != last_percent and (percent % 5 == 0 or percent == 100):
+            log(f"Installing {format_progress(percent)}")
+            last_percent = percent
 
 
 def install_payload(payload: Path, target: Path, log: Log = print) -> Path:
@@ -51,7 +75,7 @@ def install_payload(payload: Path, target: Path, log: Log = print) -> Path:
         staging = Path(temp_dir)
         app_root = _safe_extract(payload, staging, log)
         log(f"Installing to {target}")
-        shutil.copytree(app_root, target, dirs_exist_ok=True)
+        _copy_with_progress(app_root, target, log)
     log("Application files installed.")
     return target
 

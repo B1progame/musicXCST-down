@@ -1,4 +1,14 @@
-# MusicXCST Downloader 2.0.0
+# MusicXCST Downloader 3.0.0
+
+## 3.0.0
+
+- Added the optional Aurora 3.0 interface redesign; Classic remains the default and can be selected in Settings.
+- Added a motion/transitions toggle for users who prefer a reduced-motion interface.
+- Added a real pip-based yt-dlp updater that installs into an app-managed override without resetting settings, history, FFmpeg, or downloaded files.
+- Kept a verified PyPI wheel fallback when pip is unavailable, with visible progress and diagnostics in the app.
+- Added explicit Best video + best audio quality selection for combined downloads, alongside Best audio and Best video modes.
+- Added real extraction and installation progress bars to the automatic terminal installer.
+- Bumped the application release to v3.0.0.
 
 ## 2.0.2
 

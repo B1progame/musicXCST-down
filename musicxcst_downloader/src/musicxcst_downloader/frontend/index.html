@@ -221,6 +221,8 @@
             <label class="field"><span>Default format</span><select id="setFormat"></select></label>
             <label class="field"><span>Default quality</span><select id="setQuality"></select></label>
             <label class="field"><span>Default video quality</span><select id="setVideoQuality"></select></label>
+            <label class="field"><span>Interface design</span><select id="setTheme"><option value="classic">Classic</option><option value="aurora">Aurora 3.0</option></select></label>
+            <label class="toggle"><input id="setMotion" type="checkbox" checked /><span>Enable transitions and motion</span></label>
             <label class="field"><span>Theme accent color</span><input id="setAccent" type="color" /></label>
             <label class="field"><span>FFmpeg mode</span><select id="setFfmpegMode"><option value="system">system</option><option value="custom">custom path</option><option value="managed">managed</option></select></label>
             <label class="field"><span>Custom FFmpeg path</span><div class="inline-field"><input id="setFfmpegPath" /><button id="selectFfmpegBtn" class="icon-button" type="button">...</button></div></label>
@@ -239,7 +241,7 @@
             </div>
             <div class="ffmpeg-card">
               <h3>Library Updates</h3>
-              <p>Update yt-dlp manually when YouTube changes. Nothing is downloaded automatically when the app starts.</p>
+              <p>Update yt-dlp with pip directly into the app-managed library override. Nothing is downloaded automatically when the app starts.</p>
               <div class="actions compact">
                 <button id="updateYtdlpBtn" class="secondary" type="button">Update yt-dlp</button>
               </div>
@@ -270,7 +272,7 @@
               </div>
             </div>
             <div class="about-badges">
-              <span>Version <strong id="appVersionBadge">2.0.2</strong></span>
+              <span>Version <strong id="appVersionBadge">3.0.0</strong></span>
               <span>Standalone app</span>
               <span>No telemetry</span>
               <span>Private use</span>

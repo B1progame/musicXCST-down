@@ -30,3 +30,8 @@ def test_install_payload_copies_app_without_touching_user_data(tmp_path: Path):
     assert (target / "MusicXCST Downloader.exe").read_bytes() == b"new app"
     assert (target / "_internal" / "version.txt").read_text(encoding="utf-8") == "2.0.2"
     assert user_data.read_text(encoding="utf-8") == '{"accent_color":"#ff00aa"}'
+
+
+def test_terminal_installer_formats_real_progress_bar():
+    installer = load_installer_module()
+    assert installer.format_progress(50) == "[#####-----] 50%"

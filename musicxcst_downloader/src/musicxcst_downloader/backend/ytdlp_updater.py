@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+import subprocess
+import sys
 import tempfile
 import urllib.request
 import zipfile
@@ -18,6 +20,74 @@ ProgressCallback = Callable[[dict], None]
 
 def installed_ytdlp_version() -> str:
     return __version__
+
+
+def build_pip_update_command(python_executable: Path, target: Path) -> list[str]:
+    return [
+        str(python_executable),
+        "-m",
+        "pip",
+        "install",
+        "--disable-pip-version-check",
+        "--no-input",
+        "--upgrade",
+        "--target",
+        str(target),
+        "yt-dlp",
+    ]
+
+
+def _pip_python() -> Path | None:
+    if not getattr(sys, "frozen", False):
+        return Path(sys.executable)
+    for executable in (shutil.which("python"), shutil.which("py")):
+        if executable:
+            return Path(executable)
+    return None
+
+
+def _pip_install(target: Path, progress: ProgressCallback | None) -> None:
+    python = _pip_python()
+    if python is None:
+        raise RuntimeError("No Python installation with pip was found.")
+    target.mkdir(parents=True, exist_ok=True)
+    command = build_pip_update_command(python, target)
+    if progress:
+        progress({"percent": 10, "status": "Running pip to update yt-dlp..."})
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    assert process.stdout is not None
+    for line in process.stdout:
+        message = line.strip()
+        if message and progress:
+            progress({"percent": 50 if "Downloading" in message else 75, "status": message})
+    return_code = process.wait()
+    if return_code != 0:
+        raise RuntimeError(f"pip could not update yt-dlp (exit code {return_code}).")
+
+
+def _package_version(target: Path) -> str:
+    version_file = target / "yt_dlp" / "version.py"
+    text = version_file.read_text(encoding="utf-8")
+    marker = "__version__ = "
+    start = text.find(marker)
+    if start < 0:
+        return "unknown"
+    return text[start + len(marker):].splitlines()[0].strip().strip("'\"")
+
+
+def _activate_staged_package(staged: Path) -> Path:
+    override = app_data_dir() / "yt_dlp_override"
+    if override.exists():
+        shutil.rmtree(override)
+    shutil.move(str(staged), str(override))
+    return override
 
 
 def _download(url: str, target: Path, expected_sha256: str, progress: ProgressCallback | None) -> None:
@@ -56,9 +126,25 @@ def _extract_verified_package(archive_path: Path, destination: Path) -> None:
 
 
 def update_ytdlp(progress: ProgressCallback | None = None) -> dict:
-    """Install a hash-verified yt-dlp package override for the next app start."""
+    """Install a pip-managed yt-dlp override, with a verified wheel fallback."""
     if progress:
         progress({"percent": 0, "status": "Checking the latest yt-dlp release..."})
+    pip_error = None
+    with tempfile.TemporaryDirectory(prefix="musicxcst-ytdlp-") as temp_dir:
+        temp_path = Path(temp_dir)
+        pip_target = temp_path / "pip-target"
+        try:
+            _pip_install(pip_target, progress)
+            version = _package_version(pip_target)
+            _activate_staged_package(pip_target)
+            if progress:
+                progress({"percent": 100, "status": f"yt-dlp {version} installed with pip. Restart the app to activate it."})
+            return {"version": version, "output": "pip package override installed"}
+        except Exception as exc:
+            pip_error = exc
+            if progress:
+                progress({"percent": 15, "status": f"pip unavailable ({exc}); using verified wheel fallback..."})
+
     metadata_request = urllib.request.Request("https://pypi.org/pypi/yt-dlp/json", headers={"User-Agent": "MusicXCST-Downloader"})
     with urllib.request.urlopen(metadata_request, timeout=30) as response:
         metadata = json.load(response)
@@ -76,11 +162,9 @@ def update_ytdlp(progress: ProgressCallback | None = None) -> dict:
         _download(str(wheel["url"]), wheel_path, str(wheel["digests"]["sha256"]), progress)
         staged = temp_path / "override"
         _extract_verified_package(wheel_path, staged)
-        override = app_data_dir() / "yt_dlp_override"
-        if override.exists():
-            shutil.rmtree(override)
-        shutil.move(str(staged), str(override))
+        _activate_staged_package(staged)
 
     if progress:
-        progress({"percent": 100, "status": f"yt-dlp {version} installed. Restart the app to activate it."})
+        suffix = f" (pip fallback: {pip_error})" if pip_error else ""
+        progress({"percent": 100, "status": f"yt-dlp {version} installed with verified wheel{suffix}. Restart the app to activate it."})
     return {"version": version, "output": "verified package override installed"}

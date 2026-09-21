@@ -112,7 +112,14 @@ function formatOptionsForMode(mode) {
 }
 
 function qualityOptionsForMode(mode) {
-  return normalizeMode(mode) === "audio" ? qualityOptions : videoQualityOptions;
+  const normalizedMode = normalizeMode(mode);
+  if (normalizedMode === "audio") return qualityOptions;
+  return videoQualityOptions.map(([value, label]) => [
+    value,
+    value === "best"
+      ? (normalizedMode === "video-audio" ? "Best video + best audio" : "Best video")
+      : label,
+  ]);
 }
 
 function refreshDownloadOptions(mode, format = "", quality = "") {
@@ -298,6 +305,7 @@ async function removeHistory(index) {
 
 function fillSettings(settings, { updateSettingsForm = true } = {}) {
   state.settings = settings;
+  applyUiTheme(settings.ui_theme, settings.motion_enabled);
   const defaultMode = normalizeMode(settings.default_mode);
   const defaultFormat = normalizeFormat(settings.default_format);
   const defaultQuality = defaultMode === "audio" ? normalizeQuality(settings.default_quality) : (videoQualities.has(settings.default_video_quality) ? settings.default_video_quality : "best");
@@ -314,6 +322,8 @@ function fillSettings(settings, { updateSettingsForm = true } = {}) {
   $("setFormat").value = defaultFormat;
   $("setQuality").value = defaultMode === "audio" ? normalizeQuality(settings.default_quality) : "audio-best";
   $("setVideoQuality").value = settings.default_video_quality || "best";
+  $("setTheme").value = settings.ui_theme === "aurora" ? "aurora" : "classic";
+  $("setMotion").checked = settings.motion_enabled !== false;
   $("setAccent").value = settings.accent_color || "#56f0ff";
   $("setFfmpegMode").value = settings.ffmpeg_mode || "system";
   $("setFfmpegPath").value = settings.custom_ffmpeg_path || "";
@@ -363,6 +373,8 @@ function collectSettingsPatch() {
     default_format: $("setFormat").value,
     default_quality: $("setQuality").value,
     default_video_quality: $("setVideoQuality").value,
+    ui_theme: $("setTheme").value,
+    motion_enabled: $("setMotion").checked,
     accent_color: normalizeAccentColor($("setAccent").value),
     ffmpeg_mode: $("setFfmpegMode").value,
     custom_ffmpeg_path: $("setFfmpegPath").value,
@@ -377,6 +389,11 @@ function markSettingsDirty(incrementVersion = true, label = "Unsaved changes") {
   state.settingsDirty = true;
   const indicator = $("settingsSaveState");
   if (indicator) indicator.textContent = label;
+}
+
+function applyUiTheme(theme = "classic", motionEnabled = true) {
+  document.documentElement.dataset.theme = theme === "aurora" ? "aurora" : "classic";
+  document.documentElement.classList.toggle("motion-disabled", motionEnabled === false);
 }
 
 function markSettingsSaving() {
@@ -793,11 +810,17 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  ["setFormat", "setQuality", "setFfmpegMode", "setLogging"].forEach((id) => {
+  ["setFormat", "setQuality", "setFfmpegMode", "setLogging", "setTheme"].forEach((id) => {
     $(id).addEventListener("change", () => {
+      if (id === "setTheme") applyUiTheme($("setTheme").value, $("setMotion").checked);
       markSettingsDirty();
       scheduleSettingsSave();
     });
+  });
+  $("setMotion").addEventListener("change", () => {
+    applyUiTheme($("setTheme").value, $("setMotion").checked);
+    markSettingsDirty();
+    scheduleSettingsSave();
   });
   $("setMode").addEventListener("change", () => {
     const mode = normalizeMode($("setMode").value);

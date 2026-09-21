@@ -19,6 +19,7 @@ from musicxcst_downloader.backend.history import HistoryItem, HistoryStore
 from musicxcst_downloader.backend.legal import can_download
 from musicxcst_downloader.backend.settings import SettingsStore
 from musicxcst_downloader.backend.ytdlp_updater import installed_ytdlp_version
+from musicxcst_downloader.backend import ytdlp_updater
 from musicxcst_downloader.backend.browser import normalize_browser_url
 from musicxcst_downloader.backend import app_updater
 
@@ -70,6 +71,14 @@ def test_settings_migrates_video_defaults(tmp_path: Path):
     assert saved.default_mode == "video-audio"
     assert saved.default_format == "mp4"
     assert saved.default_video_quality == "720"
+
+
+def test_settings_migrates_optional_ui_theme_without_resetting_preferences(tmp_path: Path):
+    store = SettingsStore(tmp_path / "settings.json")
+    saved = store.save({"accent_color": "#ff00aa", "ui_theme": "aurora", "motion_enabled": True})
+    assert saved.accent_color == "#ff00aa"
+    assert saved.ui_theme == "aurora"
+    assert saved.motion_enabled is True
 
 
 def test_history_save_load_remove_clear(tmp_path: Path):
@@ -186,6 +195,14 @@ def test_external_link_validation_and_open(monkeypatch):
 def test_ytdlp_version_status_is_string():
     assert isinstance(installed_ytdlp_version(), str)
     assert installed_ytdlp_version() != "not installed"
+
+
+def test_pip_update_command_targets_staged_override(tmp_path: Path):
+    command = ytdlp_updater.build_pip_update_command(Path("python.exe"), tmp_path)
+    assert command[:3] == ["python.exe", "-m", "pip"]
+    assert "--target" in command
+    assert str(tmp_path) in command
+    assert "yt-dlp" in command
 
 
 def test_browser_url_accepts_urls_and_builds_google_search():
