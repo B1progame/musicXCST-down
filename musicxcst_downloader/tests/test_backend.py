@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import zipfile
 import json
 import io
@@ -252,3 +253,32 @@ def test_app_update_retries_private_github_api_with_logged_in_cli(monkeypatch):
 
     assert result["version"] == "2.0.1"
     assert requests[1].get_header("Authorization") == "Bearer github-token"
+
+
+def test_download_update_launches_installer_with_parent_pid(monkeypatch, tmp_path):
+    class Response:
+        headers = {"Content-Length": "4"}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def read(self, _size):
+            return b"" if getattr(self, "done", False) else self._finish()
+
+        def _finish(self):
+            self.done = True
+            return b"test"
+
+    launched = []
+    monkeypatch.setattr(app_updater.urllib.request, "urlopen", lambda *args, **kwargs: Response())
+    monkeypatch.setattr(app_updater.subprocess, "Popen", lambda command, **kwargs: launched.append(command))
+    monkeypatch.setattr(app_updater.os, "startfile", lambda *_: (_ for _ in ()).throw(AssertionError("legacy launch used")), raising=False)
+    monkeypatch.setattr(app_updater.tempfile, "gettempdir", lambda: str(tmp_path))
+
+    result = app_updater.download_and_launch_update("https://github.com/example/update.exe")
+
+    assert result["path"].endswith("MusicXCST-Downloader-update.exe")
+    assert launched[0][1:3] == ["--wait-pid", str(os.getpid())]

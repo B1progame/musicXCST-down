@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import os
+import argparse
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
 import zipfile
+import threading
 from pathlib import Path
 from typing import Callable
 
@@ -57,7 +59,17 @@ def _copy_with_progress(source: Path, target: Path, log: Log) -> None:
     for index, source_file in enumerate(files, start=1):
         destination = target / source_file.relative_to(source)
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source_file, destination)
+        last_error = None
+        for attempt in range(12):
+            try:
+                shutil.copy2(source_file, destination)
+                last_error = None
+                break
+            except PermissionError as exc:
+                last_error = exc
+                time.sleep(0.5)
+        if last_error is not None:
+            raise last_error
         percent = round(index / len(files) * 100)
         if percent != last_percent and (percent % 5 == 0 or percent == 100):
             log(f"Installing {format_progress(percent)}")
@@ -90,26 +102,119 @@ def _install_target() -> Path:
     return local_app_data / "Programs" / APP_NAME
 
 
-def main() -> int:
-    def log(message: str) -> None:
-        print(f"[MusicXCST Installer] {message}", flush=True)
+def _process_is_running(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    if os.name == "nt":
+        import ctypes
 
-    print("=" * 62)
-    print(f"  {APP_NAME} - automatic terminal installer")
-    print("=" * 62)
-    log("Starting unattended installation...")
+        handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)
+        if not handle:
+            return False
+        ctypes.windll.kernel32.CloseHandle(handle)
+        return True
     try:
-        target = install_payload(_payload_path(), _install_target(), log)
-        log("Settings and history were left untouched.")
-        log("Launching the installed application...")
-        subprocess.Popen([str(target / f"{APP_NAME}.exe")], close_fds=True)
-        log("Done. The application is ready.")
-        time.sleep(1.5)
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def wait_for_process_exit(pid: int, log: Log = print, timeout: float = 45.0) -> None:
+    """Wait for the previous app process to release files before copying."""
+    if not _process_is_running(pid):
+        return
+    log("Closing the previous version...")
+    deadline = time.monotonic() + timeout
+    while _process_is_running(pid) and time.monotonic() < deadline:
+        time.sleep(0.25)
+    if _process_is_running(pid):
+        raise RuntimeError("The previous application is still running. Close it and retry the update.")
+
+
+class VisualInstaller:
+    """Small windowed installer with a Circular progress ring."""
+
+    def __init__(self):
+        import tkinter as tk
+
+        self.tk = tk
+        self.root = tk.Tk()
+        self.root.title(f"{APP_NAME} Update")
+        self.root.geometry("520x420")
+        self.root.resizable(False, False)
+        self.root.configure(bg="#0b0e15")
+        self.root.protocol("WM_DELETE_WINDOW", lambda: None)
+        tk.Label(self.root, text="MusicXCST", bg="#0b0e15", fg="#f7f8fb", font=("Segoe UI", 22, "bold")).pack(pady=(28, 2))
+        tk.Label(self.root, text="Updating your desktop app", bg="#0b0e15", fg="#9da7b7", font=("Segoe UI", 11)).pack()
+        self.canvas = tk.Canvas(self.root, width=220, height=220, bg="#0b0e15", highlightthickness=0)
+        self.canvas.pack(pady=(12, 0))
+        self.canvas.create_oval(20, 20, 200, 200, outline="#202837", width=14)
+        self.arc = self.canvas.create_arc(20, 20, 200, 200, start=90, extent=0, outline="#56f0ff", width=14, style=tk.ARC)
+        self.percent = self.canvas.create_text(110, 98, text="0%", fill="#f7f8fb", font=("Segoe UI", 24, "bold"))
+        self.canvas.create_text(110, 132, text="Installing", fill="#9da7b7", font=("Segoe UI", 10))
+        self.status = tk.Label(self.root, text="Preparing update...", bg="#0b0e15", fg="#c8d1df", font=("Segoe UI", 11))
+        self.status.pack(pady=(2, 0))
+        self.detail = tk.Label(self.root, text="Your settings and downloads are kept", bg="#0b0e15", fg="#667084", font=("Segoe UI", 9))
+        self.detail.pack(pady=(4, 0))
+        self.close_button = tk.Button(self.root, text="Close", state=tk.DISABLED, command=self.root.destroy, bg="#202837", fg="#f7f8fb", relief=tk.FLAT, padx=24, pady=8)
+        self.close_button.pack(pady=16)
+
+    def update(self, percent: int, status: str) -> None:
+        def apply():
+            safe = max(0, min(100, int(percent)))
+            self.canvas.itemconfigure(self.arc, extent=-safe * 3.6)
+            self.canvas.itemconfigure(self.percent, text=f"{safe}%")
+            self.status.configure(text=status)
+        self.root.after(0, apply)
+
+    def finish(self, success: bool, message: str) -> None:
+        def apply():
+            if success:
+                self.canvas.itemconfigure(self.arc, extent=-360, outline="#57e389")
+                self.canvas.itemconfigure(self.percent, text="✓")
+                self.status.configure(text="Update complete")
+                self.detail.configure(text="Launching the updated app...")
+                self.root.after(900, self.root.destroy)
+            else:
+                self.canvas.itemconfigure(self.arc, outline="#ff5a67")
+                self.status.configure(text="Update could not be completed")
+                self.detail.configure(text=message)
+                self.close_button.configure(state=self.tk.NORMAL)
+        self.root.after(0, apply)
+
+    def run(self) -> int:
+        self.root.mainloop()
         return 0
-    except Exception as exc:
-        log(f"ERROR: {exc}")
-        time.sleep(2)
-        return 1
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--wait-pid", type=int, default=0)
+    args, _ = parser.parse_known_args()
+    visual = VisualInstaller()
+
+    def worker() -> None:
+        try:
+            if args.wait_pid:
+                wait_for_process_exit(args.wait_pid, log=lambda message: visual.update(2, message))
+            visual.update(5, "Preparing files...")
+            target = install_payload(
+                _payload_path(),
+                _install_target(),
+                log=lambda message: visual.update(
+                    int(message.rsplit(" ", 1)[-1].rstrip("%")) if message.startswith(("Extracting", "Installing")) else 4,
+                    "Installing update...",
+                ),
+            )
+            visual.update(100, "Launching updated app...")
+            subprocess.Popen([str(target / f"{APP_NAME}.exe")], close_fds=True)
+            visual.finish(True, "")
+        except Exception as exc:
+            visual.finish(False, str(exc))
+
+    threading.Thread(target=worker, daemon=True).start()
+    return visual.run()
 
 
 if __name__ == "__main__":

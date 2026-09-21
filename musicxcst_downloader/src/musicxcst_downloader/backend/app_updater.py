@@ -121,5 +121,6 @@ def download_and_launch_update(
         target.unlink(missing_ok=True)
         raise RuntimeError("The downloaded application installer failed its SHA-256 integrity check.")
 
-    os.startfile(str(target))  # type: ignore[attr-defined]
+    command = [str(target), "--wait-pid", str(os.getpid())]
+    subprocess.Popen(command, close_fds=True)
     return {"path": str(target)}

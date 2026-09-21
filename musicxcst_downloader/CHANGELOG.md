@@ -1,4 +1,11 @@
-# MusicXCST Downloader 3.1.0
+# MusicXCST Downloader 3.2.0
+
+## 3.2.0
+
+- Replaced the console installer with a windowed visual installer featuring a circular progress indicator and status text.
+- Fixed update installation failures caused by the previous app still locking files (`WinError 32`).
+- The installer waits for the previous process, retries transient file locks, and automatically launches the updated app after installation.
+- Settings, history, FFmpeg, and downloaded files remain untouched.
 
 ## 3.1.0
 

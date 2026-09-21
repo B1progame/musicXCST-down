@@ -35,3 +35,10 @@ def test_install_payload_copies_app_without_touching_user_data(tmp_path: Path):
 def test_terminal_installer_formats_real_progress_bar():
     installer = load_installer_module()
     assert installer.format_progress(50) == "[#####-----] 50%"
+
+
+def test_installer_uses_visual_progress_and_waits_for_previous_app():
+    source = (Path(__file__).parents[1] / "installer" / "terminal_installer.py").read_text(encoding="utf-8")
+    assert "tkinter" in source
+    assert "--wait-pid" in source
+    assert "Circular progress" in source

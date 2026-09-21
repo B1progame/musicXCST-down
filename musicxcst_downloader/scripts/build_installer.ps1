@@ -43,7 +43,7 @@ $InstallerName = "MusicXCST-Downloader-Setup-$Version"
     --noconfirm `
     --clean `
     --onefile `
-    --console `
+    --windowed `
     --name $InstallerName `
     --icon $Icon `
     --add-data "$Payload;." `
