@@ -1793,3 +1793,17 @@ html.motion-disabled *::after {
   transition: none !important;
   scroll-behavior: auto !important;
 }
+
+/* The settings rainbow is an update signal, not a permanent decoration. */
+.rainbow-settings,
+.rainbow-settings::before {
+  animation: none !important;
+}
+
+.rainbow-settings.rainbow-active {
+  animation: rainbowSettings 7s ease infinite !important;
+}
+
+.rainbow-settings.rainbow-active::before {
+  animation: rainbowSettings 7s linear infinite !important;
+}

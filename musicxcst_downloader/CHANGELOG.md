@@ -1,4 +1,10 @@
-# MusicXCST Downloader 4.0.0
+# MusicXCST Downloader 4.0.1
+
+## 4.0.1
+- Fixed startup version reporting so the installed app and yt-dlp versions are always visible immediately.
+- Kept yt-dlp version details visible while pip progress updates run.
+- Automatically restarts the app after a successful yt-dlp update so the new package activates.
+- Made the animated rainbow Settings treatment appear only when a new app update is available.
 
 ## 4.0.0
 - Reworked the entire desktop interface with a cleaner workspace hierarchy, clearer download steps, stronger navigation, and calmer visual surfaces.

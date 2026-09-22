@@ -19,6 +19,7 @@ const state = {
   browserOpen: false,
   updateAvailable: false,
   currentVersion: "unknown",
+  currentYtdlpVersion: "unknown",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -524,9 +525,13 @@ window.MusicXCST = {
         renderYtdlp(event);
       } else if (event.version) {
         renderYtdlp({ version: event.version });
-        $("ytdlpStatus").textContent = event.status || "yt-dlp update finished.";
-      } else {
-        $("ytdlpStatus").textContent = event.status || "yt-dlp update finished.";
+      }
+      if (!event.current_version && !event.latest_version && !event.version && !event.running) {
+        $("ytdlpProgressStatus").textContent = event.status || "yt-dlp update check failed.";
+      }
+      if (event.restart) {
+        setYtdlpProgress(100, "Restarting the app...");
+        setStatus("Restarting the app to activate yt-dlp...");
       }
       setStatus(event.status || "yt-dlp update finished.");
       appendTerminal(event.status || "yt-dlp update finished.");
@@ -610,6 +615,7 @@ function setFfmpegDownloadState(running, label = "Download App FFmpeg") {
 function renderYtdlp(info) {
   const current = info?.current_version || info?.version || "unknown";
   const latest = info?.latest_version;
+  state.currentYtdlpVersion = current;
   $("ytdlpStatus").textContent = latest
     ? (info.available === false ? `Installed: ${current} (up to date)` : `Installed: ${current} • Latest: ${latest}`)
     : `Installed version: ${current}`;
@@ -648,6 +654,7 @@ function setUpdateReminder(available, version = "") {
   const reminder = $("updateReminder");
   const reminderText = $("updateReminderText");
   reminder?.classList.toggle("hidden", !available);
+  document.querySelector(".rainbow-settings")?.classList.toggle("rainbow-active", Boolean(available));
   reminderText?.classList.toggle("hidden", !available);
   if (available) {
     const label = version ? `Update ${version} available` : "A new app update is available";

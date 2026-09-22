@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+import subprocess
+import sys
 import threading
 from dataclasses import asdict
 from pathlib import Path
@@ -28,6 +30,13 @@ from .backend.settings import Settings, SettingsStore
 from .backend.ytdlp_updater import check_ytdlp_update, installed_ytdlp_version, update_ytdlp
 
 LOGGER = logging.getLogger(__name__)
+
+
+def restart_application() -> None:
+    """Start the current app again, preserving the packaged or development entrypoint."""
+    command = [sys.executable] if getattr(sys, "frozen", False) else [sys.executable, *sys.argv]
+    subprocess.Popen(command, close_fds=True)
+
 
 class Api:
     _BRIDGE_METHODS = {
@@ -103,13 +112,19 @@ class Api:
                 LOGGER.exception("Could not emit UI event")
 
     def startup(self) -> dict:
+        ytdlp_version = installed_ytdlp_version()
         return {
             "appVersion": __version__,
             "settings": asdict(self._settings),
             "history": self._history_store.load(),
             "legalNotice": FIRST_RUN_NOTICE,
             "ffmpeg": probe(self._settings.ffmpeg_mode, self._settings.custom_ffmpeg_path),
-            "ytdlp": {"version": installed_ytdlp_version()},
+            "ytdlp": {
+                "version": ytdlp_version,
+                "current_version": ytdlp_version,
+                "latest_version": None,
+                "available": None,
+            },
         }
 
     def save_settings(self, patch: dict) -> dict:
@@ -190,8 +205,10 @@ class Api:
                     "current_version": result["version"],
                     "latest_version": result["version"],
                     "available": False,
-                    "status": f"yt-dlp updated to {result['version']}. Restart the app to use it.",
+                    "restart": True,
+                    "status": f"yt-dlp updated to {result['version']}. Restarting the app...",
                 })
+                threading.Timer(0.8, self._restart_after_update).start()
             except Exception as exc:
                 LOGGER.exception("yt-dlp update failed")
                 self._emit({"type": "ytdlp_update", "running": False, "ok": False, "status": str(exc)})
@@ -200,6 +217,15 @@ class Api:
 
         threading.Thread(target=run, daemon=True).start()
         return {"ok": True, "status": "yt-dlp update started"}
+
+    def _restart_after_update(self) -> None:
+        try:
+            restart_application()
+        except Exception:
+            LOGGER.exception("Could not restart the app after updating yt-dlp")
+        finally:
+            if self._window:
+                self._window.destroy()
 
     def update_app(self) -> dict:
         def run() -> None:

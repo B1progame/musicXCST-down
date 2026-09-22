@@ -33,3 +33,15 @@ def test_v4_interface_has_clear_navigation_and_accessible_feedback():
     assert "button:focus-visible" in css
     assert "button:disabled" in css
     assert "@media (prefers-reduced-motion: reduce)" in css
+
+
+def test_update_visuals_are_conditional_and_restart_is_wired():
+    css = (FRONTEND / "styles.css").read_text(encoding="utf-8")
+    js = (FRONTEND / "app.js").read_text(encoding="utf-8")
+    app = (ROOT / "src" / "musicxcst_downloader" / "app.py").read_text(encoding="utf-8")
+
+    assert ".rainbow-settings.rainbow-active" in css
+    assert "classList.toggle(\"rainbow-active\"" in js
+    assert "Restarting the app" in js
+    assert '"restart": True' in app
+    assert "restart_application" in app
