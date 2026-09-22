@@ -178,6 +178,17 @@ function describeError(error) {
   return "Unexpected bridge error";
 }
 
+function describeAnalysisError(error) {
+  const message = describeError(error);
+  if (/video is (not )?available|video is unavailable|private video|sign in to confirm/i.test(message)) {
+    return "YouTube says this video is unavailable. Check the link, region, or privacy settings, then try again.";
+  }
+  if (/age-restricted|confirm your age/i.test(message)) {
+    return "YouTube requires age verification for this video. Try another accessible link.";
+  }
+  return message.replace(/^ERROR:\s*/i, "");
+}
+
 function setStatus(text, detail = "--") {
   elements.statusText.textContent = text;
   elements.speedEta.textContent = detail;
@@ -520,15 +531,16 @@ window.MusicXCST = {
       setStatus(event.status);
     }
     if (event.type === "analysis") {
-      const scanDetail = event.ok ? `${event.data.formats_count || 0} streams scanned` : event.error;
+      const analysisError = event.ok ? "" : describeAnalysisError(event.error);
+      const scanDetail = event.ok ? `${event.data.formats_count || 0} streams scanned` : analysisError;
       setAnalysisState(false, { ok: event.ok, detail: scanDetail });
       if (event.ok) {
         renderAnalysis(event.data);
         appendTerminal(`Analysis complete: ${event.data.formats_count || 0} streams scanned.`);
         setStatus("Analysis complete.");
       } else {
-        appendTerminal(`Analysis failed: ${event.error}`);
-        setStatus(`Analysis failed: ${event.error}`);
+        appendTerminal(`Analysis failed: ${analysisError}`);
+        setStatus(`Analysis failed: ${analysisError}`);
       }
     }
     if (event.type === "terminal") appendTerminal(event.line || event.status || "Working...");
@@ -803,11 +815,12 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const result = await callApi("analyze", url);
       if (!result.ok) {
-        setAnalysisState(false, { ok: false, detail: result.error });
-        setStatus(result.error);
+        const message = describeAnalysisError(result.error);
+        setAnalysisState(false, { ok: false, detail: message });
+        setStatus(message);
       }
     } catch (error) {
-      const message = describeError(error);
+      const message = describeAnalysisError(error);
       setAnalysisState(false, { ok: false, detail: message });
       setStatus(`Analysis failed: ${message}`);
     }

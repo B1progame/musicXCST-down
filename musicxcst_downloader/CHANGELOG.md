@@ -1,4 +1,9 @@
-# MusicXCST Downloader 4.0.8
+# MusicXCST Downloader 4.0.9
+
+## 4.0.9
+
+- Replaced raw yt-dlp unavailable-video errors with a clear message explaining link, region, and privacy checks.
+- Added friendly age-restriction guidance for analysis failures.
 
 ## 4.0.8
 

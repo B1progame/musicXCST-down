@@ -115,3 +115,12 @@ def test_analyze_link_has_visible_indeterminate_progress_state():
     assert "function setAnalysisState" in js
     assert "setAnalysisState(true" in js
     assert "setAnalysisState(false" in js
+
+
+def test_unavailable_analysis_errors_are_user_friendly():
+    js = (FRONTEND / "app.js").read_text(encoding="utf-8")
+
+    assert "function describeAnalysisError" in js
+    assert "YouTube says this video is unavailable" in js
+    assert "Check the link, region, or privacy settings" in js
+    assert "Analysis failed: ${analysisError}" in js
