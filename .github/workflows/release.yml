@@ -37,8 +37,14 @@ jobs:
         run: |
           $version = $env:RELEASE_VERSION.TrimStart('v')
           $asset = "dist/installer/MusicXCST-Downloader-Setup-$version.exe"
-          gh release view $env:RELEASE_VERSION *> $null
-          if ($LASTEXITCODE -eq 0) {
+          $releaseExists = $false
+          try {
+            gh release view $env:RELEASE_VERSION *> $null
+            $releaseExists = ($LASTEXITCODE -eq 0)
+          } catch {
+            $releaseExists = $false
+          }
+          if ($releaseExists) {
             gh release upload $env:RELEASE_VERSION $asset --clobber
           } else {
             gh release create $env:RELEASE_VERSION $asset --title "MusicXCST Downloader $version" --generate-notes
