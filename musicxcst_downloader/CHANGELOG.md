@@ -1,4 +1,10 @@
-# MusicXCST Downloader 4.2.1
+# MusicXCST Downloader 4.2.2
+
+## 4.2.2
+
+- Auto browser-cookie mode now means all installed browsers, tried one after another.
+- Browser detection now checks both profile data and installed browser executables.
+- Settings now labels browser-specific modes clearly as “only”.
 
 ## 4.2.1
 

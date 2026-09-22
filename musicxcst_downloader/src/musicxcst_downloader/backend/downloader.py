@@ -28,14 +28,16 @@ COOKIE_BROWSERS = ("brave", "chrome", "edge", "firefox", "chromium", "opera", "v
 def _browser_cookie_data_exists(browser: str) -> bool:
     local_app_data = Path(os.environ.get("LOCALAPPDATA", ""))
     roaming_app_data = Path(os.environ.get("APPDATA", ""))
+    program_files = Path(os.environ.get("PROGRAMFILES", ""))
+    program_files_x86 = Path(os.environ.get("PROGRAMFILES(X86)", ""))
     locations = {
-        "brave": (local_app_data / "BraveSoftware" / "Brave-Browser" / "User Data",),
-        "chrome": (local_app_data / "Google" / "Chrome" / "User Data",),
-        "edge": (local_app_data / "Microsoft" / "Edge" / "User Data",),
-        "firefox": (roaming_app_data / "Mozilla" / "Firefox" / "Profiles",),
+        "brave": (local_app_data / "BraveSoftware" / "Brave-Browser" / "User Data", program_files / "BraveSoftware" / "Brave-Browser" / "Application" / "brave.exe", program_files_x86 / "BraveSoftware" / "Brave-Browser" / "Application" / "brave.exe"),
+        "chrome": (local_app_data / "Google" / "Chrome" / "User Data", program_files / "Google" / "Chrome" / "Application" / "chrome.exe", program_files_x86 / "Google" / "Chrome" / "Application" / "chrome.exe"),
+        "edge": (local_app_data / "Microsoft" / "Edge" / "User Data", program_files / "Microsoft" / "Edge" / "Application" / "msedge.exe", program_files_x86 / "Microsoft" / "Edge" / "Application" / "msedge.exe"),
+        "firefox": (roaming_app_data / "Mozilla" / "Firefox" / "Profiles", program_files / "Mozilla Firefox" / "firefox.exe", program_files_x86 / "Mozilla Firefox" / "firefox.exe"),
         "chromium": (local_app_data / "Chromium" / "User Data",),
         "opera": (roaming_app_data / "Opera Software" / "Opera Stable",),
-        "vivaldi": (local_app_data / "Vivaldi" / "User Data",),
+        "vivaldi": (local_app_data / "Vivaldi" / "User Data", program_files / "Vivaldi" / "Application" / "vivaldi.exe", program_files_x86 / "Vivaldi" / "Application" / "vivaldi.exe"),
     }
     return any(path and path.exists() for path in locations.get(browser, ()))
 

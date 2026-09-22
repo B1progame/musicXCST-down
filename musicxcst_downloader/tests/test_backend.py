@@ -87,6 +87,14 @@ def test_explicit_browser_cookie_source_is_respected():
     assert cookie_browser_candidates("brave") == ("brave",)
 
 
+def test_auto_browser_cookie_source_returns_all_detected_browsers(monkeypatch):
+    monkeypatch.setattr(
+        "musicxcst_downloader.backend.downloader._browser_cookie_data_exists",
+        lambda browser: browser in {"brave", "chrome", "edge"},
+    )
+    assert cookie_browser_candidates("auto") == ("brave", "chrome", "edge")
+
+
 def test_settings_migration_preserves_existing_preferences(tmp_path: Path):
     path = tmp_path / "settings.json"
     path.write_text(
