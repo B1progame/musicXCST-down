@@ -98,8 +98,11 @@ def test_start_screen_is_shown_on_every_launch_and_only_dismissed_for_session():
     js = (FRONTEND / "app.js").read_text(encoding="utf-8")
 
     assert 'id="firstRun" class="notice-backdrop">' in html
-    assert '$("firstRun").classList.remove("hidden")' in js
+    assert 'classList.toggle("hidden", boot.settings.show_start_screen === false)' in js
     assert '$("firstRun").classList.add("hidden")' in js
+    assert 'id="setShowStartScreen"' in html
+    assert 'id="setUseBrowserCookies"' in html
+    assert 'id="setBrowserCookieSource"' in html
     assert 'saveSettingsPatch({ first_run_confirmed: true })' not in js
 
 

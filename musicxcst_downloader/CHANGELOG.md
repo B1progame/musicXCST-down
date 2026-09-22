@@ -1,4 +1,11 @@
-# MusicXCST Downloader 4.1.0
+# MusicXCST Downloader 4.2.0
+
+## 4.2.0
+
+- Added browser-cookie fallback for yt-dlp analysis and downloads after a normal attempt fails.
+- Added automatic or selected browser cookie sources for Chrome, Edge, Firefox, Brave, Chromium, Opera, and Vivaldi.
+- Added a Settings toggle to enable or disable browser-cookie retries, with local-only privacy guidance.
+- Added a persistent Settings toggle for showing the legal start screen on launch.
 
 ## 4.1.0
 

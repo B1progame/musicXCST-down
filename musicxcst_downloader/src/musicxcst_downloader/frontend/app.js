@@ -432,6 +432,9 @@ function fillSettings(settings, { updateSettingsForm = true } = {}) {
   $("setVideoQuality").value = settings.default_video_quality || "best";
   $("setTheme").value = settings.ui_theme === "aurora" ? "aurora" : "classic";
   $("setMotion").checked = settings.motion_enabled !== false;
+  $("setShowStartScreen").checked = settings.show_start_screen !== false;
+  $("setUseBrowserCookies").checked = settings.use_browser_cookies !== false;
+  $("setBrowserCookieSource").value = settings.browser_cookie_source || "auto";
   $("setAccent").value = settings.accent_color || "#56f0ff";
   $("setFfmpegMode").value = settings.ffmpeg_mode || "system";
   $("setFfmpegPath").value = settings.custom_ffmpeg_path || "";
@@ -483,6 +486,9 @@ function collectSettingsPatch() {
     default_video_quality: $("setVideoQuality").value,
     ui_theme: $("setTheme").value,
     motion_enabled: $("setMotion").checked,
+    show_start_screen: $("setShowStartScreen").checked,
+    use_browser_cookies: $("setUseBrowserCookies").checked,
+    browser_cookie_source: $("setBrowserCookieSource").value,
     accent_color: normalizeAccentColor($("setAccent").value),
     ffmpeg_mode: $("setFfmpegMode").value,
     custom_ffmpeg_path: $("setFfmpegPath").value,
@@ -703,7 +709,7 @@ async function init() {
   renderAppVersion(boot.appVersion);
   // The legal start screen is intentionally shown on every application launch.
   // It is dismissed for this session only when the user acknowledges it.
-  $("firstRun").classList.remove("hidden");
+  $("firstRun").classList.toggle("hidden", boot.settings.show_start_screen === false);
   setYtdlpUpdateState(true, "Checking...");
   setAppUpdateState(true, "Checking...");
   callApi("check_app_update").catch(() => {
@@ -1031,7 +1037,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  ["setFormat", "setQuality", "setVideoQuality", "setFfmpegMode", "setLogging", "setTheme"].forEach((id) => {
+  ["setFormat", "setQuality", "setVideoQuality", "setFfmpegMode", "setLogging", "setTheme", "setBrowserCookieSource"].forEach((id) => {
     $(id).addEventListener("change", () => {
       if (id === "setTheme") applyUiTheme($("setTheme").value, $("setMotion").checked);
       markSettingsDirty();
@@ -1040,6 +1046,15 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   $("setMotion").addEventListener("change", () => {
     applyUiTheme($("setTheme").value, $("setMotion").checked);
+    markSettingsDirty();
+    scheduleSettingsSave();
+  });
+  $("setShowStartScreen").addEventListener("change", () => {
+    $("firstRun").classList.toggle("hidden", !$("setShowStartScreen").checked);
+    markSettingsDirty();
+    scheduleSettingsSave();
+  });
+  $("setUseBrowserCookies").addEventListener("change", () => {
     markSettingsDirty();
     scheduleSettingsSave();
   });

@@ -21,6 +21,18 @@ VIDEO_FORMATS = {"mp4", "mkv", "webm", "mov", "avi", "m4v", "ts"}
 DOWNLOAD_MODES = {"audio", "video", "video-audio"}
 VIDEO_QUALITIES = {"best", "2160", "1440", "1080", "720", "480", "360"}
 ATMOS_AUDIO_CODECS = {"eac3", "ec3", "ec-3"}
+COOKIE_BROWSERS = ("chrome", "edge", "firefox", "brave", "chromium", "opera", "vivaldi")
+
+
+def cookie_browser_candidates(source: str = "auto") -> tuple[str, ...]:
+    source = str(source or "auto").lower()
+    return COOKIE_BROWSERS if source == "auto" else (source,)
+
+
+def _with_browser_cookies(options: dict, browser: str) -> dict:
+    cookie_options = dict(options)
+    cookie_options["cookiesfrombrowser"] = (browser,)
+    return cookie_options
 
 
 def validate_url(url: str) -> bool:
@@ -117,7 +129,7 @@ def _best_formats(formats: list[dict]) -> dict:
     }
 
 
-def analyze_url(url: str, max_duration_warning_minutes: int = 60) -> dict:
+def analyze_url(url: str, max_duration_warning_minutes: int = 60, use_browser_cookies: bool = False, browser_cookie_source: str = "auto") -> dict:
     if not validate_url(url):
         raise ValueError("Enter a valid http or https URL.")
     options = {
@@ -127,8 +139,24 @@ def analyze_url(url: str, max_duration_warning_minutes: int = 60) -> dict:
         "noplaylist": True,
         "extract_flat": False,
     }
-    with YoutubeDL(options) as ydl:
-        info = ydl.extract_info(url, download=False)
+    try:
+        with YoutubeDL(options) as ydl:
+            info = ydl.extract_info(url, download=False)
+    except Exception as first_error:
+        if not use_browser_cookies:
+            raise
+        last_error = first_error
+        for browser in cookie_browser_candidates(browser_cookie_source):
+            LOGGER.info("Analysis failed; retrying with %s browser cookies", browser)
+            try:
+                with YoutubeDL(_with_browser_cookies(options, browser)) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                break
+            except Exception as cookie_error:
+                last_error = cookie_error
+                LOGGER.debug("Browser cookie analysis retry failed for %s", browser, exc_info=True)
+        else:
+            raise last_error from first_error
     formats = info.get("formats") or []
     audio_formats = [f for f in formats if f.get("acodec") not in (None, "none")]
     video_formats = [f for f in formats if f.get("vcodec") not in (None, "none")]
@@ -333,8 +361,24 @@ class DownloadWorker:
         LOGGER.info("Starting download for %s", url)
         self.progress({"type": "terminal", "line": f"Starting {mode} download as {fmt} ({quality})."})
         self.progress({"type": "progress", "percent": 0, "status": "Starting download...", "stage": "Starting"})
-        with YoutubeDL(options) as ydl:
-            ydl.download([url])
+        try:
+            with YoutubeDL(options) as ydl:
+                ydl.download([url])
+        except Exception as first_error:
+            if not request.get("use_browser_cookies"):
+                raise
+            last_error = first_error
+            for browser in cookie_browser_candidates(request.get("browser_cookie_source", "auto")):
+                self.progress({"type": "terminal", "line": f"Retrying with {browser} browser cookies..."})
+                try:
+                    with YoutubeDL(_with_browser_cookies(options, browser)) as ydl:
+                        ydl.download([url])
+                    break
+                except Exception as cookie_error:
+                    last_error = cookie_error
+                    LOGGER.debug("Browser cookie download retry failed for %s", browser, exc_info=True)
+            else:
+                raise last_error from first_error
         self.progress(
             {
                 "type": "complete",

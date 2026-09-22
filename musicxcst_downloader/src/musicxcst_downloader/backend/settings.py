@@ -14,6 +14,7 @@ ALLOWED_AUDIO_QUALITIES = {"audio-best", "audio-small"}
 ALLOWED_VIDEO_QUALITIES = {"best", "2160", "1440", "1080", "720", "480", "360"}
 ALLOWED_FFMPEG_MODES = {"system", "custom", "managed"}
 ALLOWED_UI_THEMES = {"classic", "aurora"}
+ALLOWED_COOKIE_BROWSERS = {"auto", "chrome", "edge", "firefox", "brave", "chromium", "opera", "vivaldi"}
 
 
 @dataclass
@@ -32,6 +33,9 @@ class Settings:
     first_run_confirmed: bool = False
     ui_theme: str = "classic"
     motion_enabled: bool = True
+    show_start_screen: bool = True
+    use_browser_cookies: bool = True
+    browser_cookie_source: str = "auto"
     settings_version: int = 3
 
 
@@ -79,5 +83,7 @@ class SettingsStore:
             settings.ffmpeg_mode = "system"
         if settings.ui_theme not in ALLOWED_UI_THEMES:
             settings.ui_theme = "classic"
+        if settings.browser_cookie_source not in ALLOWED_COOKIE_BROWSERS:
+            settings.browser_cookie_source = "auto"
         settings.settings_version = 3
         return settings

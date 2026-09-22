@@ -7,6 +7,7 @@ from urllib.error import HTTPError
 
 from musicxcst_downloader.backend.downloader import (
     DownloadWorker,
+    analyze_url,
     build_format_selector,
     format_supports_dolby_atmos,
     output_filename_from_title,
@@ -51,6 +52,34 @@ def test_settings_save_load(tmp_path: Path):
     assert saved.default_format == "mp3"
     assert loaded.default_format == "mp3"
     assert loaded.max_duration_warning_minutes == 12
+    assert loaded.use_browser_cookies is True
+    assert loaded.browser_cookie_source == "auto"
+
+
+def test_analysis_retries_with_browser_cookies_after_normal_failure(monkeypatch):
+    attempts = []
+
+    class FakeYoutubeDL:
+        def __init__(self, options):
+            attempts.append(options)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def extract_info(self, url, download=False):
+            if "cookiesfrombrowser" not in attempts[-1]:
+                raise RuntimeError("video unavailable")
+            return {"title": "Cookie video", "formats": []}
+
+    monkeypatch.setattr("musicxcst_downloader.backend.downloader.YoutubeDL", FakeYoutubeDL)
+    result = analyze_url("https://example.com/video", use_browser_cookies=True, browser_cookie_source="edge")
+
+    assert result["title"] == "Cookie video"
+    assert len(attempts) == 2
+    assert attempts[1]["cookiesfrombrowser"] == ("edge",)
 
 
 def test_settings_migration_preserves_existing_preferences(tmp_path: Path):

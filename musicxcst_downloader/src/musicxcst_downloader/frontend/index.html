@@ -12,6 +12,7 @@
         <img class="app-logo small" src="./assets/icon.ico" alt="MusicXCST Downloader logo" />
         <h1>Before You Download</h1>
         <p id="legalNotice">Use this tool only for music, audio, or video you own, have permission to use, or are legally allowed to download.</p>
+        <p class="mini-note">If enabled in Settings, yt-dlp may read cookies locally from your selected browser to access content your browser can already access. Cookies are not uploaded by MusicXCST.</p>
         <button id="acceptNotice" class="primary wide">I Understand</button>
       </section>
     </div>
@@ -231,6 +232,10 @@
             <label class="field"><span>Default video quality</span><select id="setVideoQuality"></select></label>
             <label class="field"><span>Interface design</span><select id="setTheme"><option value="classic">Classic</option><option value="aurora">Aurora 3.0</option></select></label>
             <label class="toggle"><input id="setMotion" type="checkbox" checked /><span>Enable transitions and motion</span></label>
+            <label class="toggle"><input id="setShowStartScreen" type="checkbox" checked /><span>Show the legal start screen on launch</span></label>
+            <label class="toggle"><input id="setUseBrowserCookies" type="checkbox" checked /><span>Retry YouTube with browser cookies when needed</span></label>
+            <label class="field"><span>Browser cookie source</span><select id="setBrowserCookieSource"><option value="auto">Automatic (Chrome, Edge, Firefox, Brave...)</option><option value="chrome">Chrome</option><option value="edge">Edge</option><option value="firefox">Firefox</option><option value="brave">Brave</option><option value="chromium">Chromium</option><option value="opera">Opera</option><option value="vivaldi">Vivaldi</option></select></label>
+            <p class="mini-note full">Browser cookies are only read after a normal yt-dlp attempt fails. Close the browser if cookie access is locked. Only enable this on a trusted computer.</p>
             <label class="field"><span>Theme accent color</span><input id="setAccent" type="color" /></label>
             <label class="field"><span>FFmpeg mode</span><select id="setFfmpegMode"><option value="system">system</option><option value="custom">custom path</option><option value="managed">managed</option></select></label>
             <label class="field"><span>Custom FFmpeg path</span><div class="inline-field"><input id="setFfmpegPath" /><button id="selectFfmpegBtn" class="icon-button" type="button">...</button></div></label>
@@ -280,7 +285,7 @@
               </div>
             </div>
             <div class="about-badges">
-              <span>Version <strong id="appVersionBadge">4.1.0</strong></span>
+              <span>Version <strong id="appVersionBadge">4.2.0</strong></span>
               <span>Standalone app</span>
               <span>No telemetry</span>
               <span>Private use</span>

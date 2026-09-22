@@ -303,7 +303,7 @@ class Api:
         def run() -> None:
             try:
                 self._emit({"type": "analyze_status", "status": "Analyzing link..."})
-                info = analyze_url(url, self._settings.max_duration_warning_minutes)
+                info = analyze_url(url, self._settings.max_duration_warning_minutes, self._settings.use_browser_cookies, self._settings.browser_cookie_source)
                 self._last_analysis = info
                 default_ext = self._settings.default_format
                 info["suggested_filename"] = output_filename_from_title(info["safe_filename"], default_ext)
@@ -328,6 +328,8 @@ class Api:
             self._settings = self._settings_store.save({"default_output_folder": output_folder})
             self._emit({"type": "settings", "settings": asdict(self._settings)})
         request["output_folder"] = output_folder
+        request["use_browser_cookies"] = self._settings.use_browser_cookies
+        request["browser_cookie_source"] = self._settings.browser_cookie_source
 
         title = (self._last_analysis or {}).get("title") or request.get("filename") or "Download"
 
