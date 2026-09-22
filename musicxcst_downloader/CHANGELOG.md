@@ -1,4 +1,11 @@
-# MusicXCST Downloader 4.2.3
+# MusicXCST Downloader 4.3.0
+
+## 4.3.0
+
+- Added a local cookies.txt import fallback after browser-cookie attempts fail.
+- Added Settings controls for importing cookie files and opening official yt-dlp export guidance.
+- Added cookie-file retry support for both analysis and downloads.
+- Added clear guidance for locked or unreadable cookie databases.
 
 ## 4.2.3
 

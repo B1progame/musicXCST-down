@@ -440,6 +440,7 @@ function fillSettings(settings, { updateSettingsForm = true } = {}) {
   $("setShowStartScreen").checked = settings.show_start_screen !== false;
   $("setUseBrowserCookies").checked = settings.use_browser_cookies !== false;
   $("setBrowserCookieSource").value = settings.browser_cookie_source || "auto";
+  $("cookieFileStatus").textContent = settings.cookie_file_path ? `Imported: ${settings.cookie_file_path}` : "No cookie file imported";
   $("setAccent").value = settings.accent_color || "#56f0ff";
   $("setFfmpegMode").value = settings.ffmpeg_mode || "system";
   $("setFfmpegPath").value = settings.custom_ffmpeg_path || "";
@@ -1062,6 +1063,14 @@ document.addEventListener("DOMContentLoaded", () => {
   $("setUseBrowserCookies").addEventListener("change", () => {
     markSettingsDirty();
     scheduleSettingsSave();
+  });
+  $("importCookieFileBtn").addEventListener("click", async () => {
+    const result = await callApi("select_cookie_file");
+    if (result?.ok) {
+      fillSettings(result.settings || {}, { updateSettingsForm: true });
+      markSettingsSaved();
+      setStatus("Cookie file imported locally.");
+    }
   });
   $("setMode").addEventListener("change", () => {
     const mode = normalizeMode($("setMode").value);

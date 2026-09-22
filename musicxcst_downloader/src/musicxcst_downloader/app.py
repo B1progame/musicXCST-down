@@ -46,6 +46,7 @@ class Api:
         "choose_output_folder",
         "choose_default_output_folder",
         "select_ffmpeg",
+        "select_cookie_file",
         "test_ffmpeg",
         "download_managed_ffmpeg",
         "update_ytdlp",
@@ -157,6 +158,19 @@ class Api:
             file_types=("FFmpeg executable (*.exe)", "All files (*.*)"),
         )
         return result[0] if result else ""
+
+    def select_cookie_file(self) -> dict:
+        if not self._window:
+            return {"ok": False, "cancelled": True}
+        result = self._window.create_file_dialog(
+            webview.OPEN_DIALOG,
+            file_types=("Netscape cookies (*.txt)", "Cookie files (*.cookies)", "All files (*.*)"),
+        )
+        if not result:
+            return {"ok": False, "cancelled": True}
+        path = result[0]
+        self._settings = self._settings_store.save({"cookie_file_path": path})
+        return {"ok": True, "path": path, "settings": asdict(self._settings)}
 
     def test_ffmpeg(self, mode: str | None = None, custom_path: str | None = None) -> dict:
         return probe(mode or self._settings.ffmpeg_mode, custom_path or self._settings.custom_ffmpeg_path)
@@ -303,7 +317,7 @@ class Api:
         def run() -> None:
             try:
                 self._emit({"type": "analyze_status", "status": "Analyzing link..."})
-                info = analyze_url(url, self._settings.max_duration_warning_minutes, self._settings.use_browser_cookies, self._settings.browser_cookie_source)
+                info = analyze_url(url, self._settings.max_duration_warning_minutes, self._settings.use_browser_cookies, self._settings.browser_cookie_source, self._settings.cookie_file_path)
                 self._last_analysis = info
                 default_ext = self._settings.default_format
                 info["suggested_filename"] = output_filename_from_title(info["safe_filename"], default_ext)
@@ -330,6 +344,7 @@ class Api:
         request["output_folder"] = output_folder
         request["use_browser_cookies"] = self._settings.use_browser_cookies
         request["browser_cookie_source"] = self._settings.browser_cookie_source
+        request["cookie_file_path"] = self._settings.cookie_file_path
 
         title = (self._last_analysis or {}).get("title") or request.get("filename") or "Download"
 

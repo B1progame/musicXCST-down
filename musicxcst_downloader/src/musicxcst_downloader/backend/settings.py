@@ -36,6 +36,7 @@ class Settings:
     show_start_screen: bool = True
     use_browser_cookies: bool = True
     browser_cookie_source: str = "auto"
+    cookie_file_path: str = ""
     settings_version: int = 3
 
 

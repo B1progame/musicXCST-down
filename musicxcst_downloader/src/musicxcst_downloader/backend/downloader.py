@@ -92,6 +92,12 @@ def _with_browser_cookies(options: dict, browser: str, profile: str | None = Non
     return cookie_options
 
 
+def _with_cookie_file(options: dict, cookie_file_path: str) -> dict:
+    cookie_options = dict(options)
+    cookie_options["cookiefile"] = str(Path(cookie_file_path).expanduser())
+    return cookie_options
+
+
 def validate_url(url: str) -> bool:
     try:
         parsed = urlparse(url.strip())
@@ -186,7 +192,7 @@ def _best_formats(formats: list[dict]) -> dict:
     }
 
 
-def analyze_url(url: str, max_duration_warning_minutes: int = 60, use_browser_cookies: bool = False, browser_cookie_source: str = "auto") -> dict:
+def analyze_url(url: str, max_duration_warning_minutes: int = 60, use_browser_cookies: bool = False, browser_cookie_source: str = "auto", cookie_file_path: str = "") -> dict:
     if not validate_url(url):
         raise ValueError("Enter a valid http or https URL.")
     options = {
@@ -200,11 +206,12 @@ def analyze_url(url: str, max_duration_warning_minutes: int = 60, use_browser_co
         with YoutubeDL(options) as ydl:
             info = ydl.extract_info(url, download=False)
     except Exception as first_error:
-        if not use_browser_cookies:
+        if not use_browser_cookies and not cookie_file_path:
             raise
         last_error = first_error
         failures = []
-        for browser, profile in _cookie_attempts(browser_cookie_source):
+        cookie_attempts = _cookie_attempts(browser_cookie_source) if use_browser_cookies else ()
+        for browser, profile in cookie_attempts:
             label = f"{browser}/{profile}" if profile else browser
             LOGGER.info("Analysis failed; retrying with %s browser cookies", label)
             try:
@@ -216,7 +223,18 @@ def analyze_url(url: str, max_duration_warning_minutes: int = 60, use_browser_co
                 failures.append(f"{label}: {cookie_error}")
                 LOGGER.debug("Browser cookie analysis retry failed for %s", browser, exc_info=True)
         else:
-            raise RuntimeError(f"{last_error} Browser cookie attempts: {'; '.join(failures) or 'none detected'}.") from first_error
+            cookie_file = str(cookie_file_path or "").strip()
+            if cookie_file and Path(cookie_file).is_file():
+                try:
+                    with YoutubeDL(_with_cookie_file(options, cookie_file)) as ydl:
+                        info = ydl.extract_info(url, download=False)
+                except Exception as cookie_file_error:
+                    last_error = cookie_file_error
+                    failures.append(f"cookie file: {cookie_file_error}")
+                else:
+                    failures = []
+            if failures or not cookie_file:
+                raise RuntimeError(f"{last_error} Cookie attempts: {'; '.join(failures) or 'none detected'}.") from first_error
     formats = info.get("formats") or []
     audio_formats = [f for f in formats if f.get("acodec") not in (None, "none")]
     video_formats = [f for f in formats if f.get("vcodec") not in (None, "none")]
@@ -441,7 +459,18 @@ class DownloadWorker:
                     failures.append(f"{label}: {cookie_error}")
                     LOGGER.debug("Browser cookie download retry failed for %s", browser, exc_info=True)
             else:
-                raise RuntimeError(f"{last_error} Browser cookie attempts: {'; '.join(failures) or 'none detected'}.") from first_error
+                cookie_file = str(request.get("cookie_file_path") or "").strip()
+                if cookie_file and Path(cookie_file).is_file():
+                    try:
+                        with YoutubeDL(_with_cookie_file(options, cookie_file)) as ydl:
+                            ydl.download([url])
+                    except Exception as cookie_file_error:
+                        last_error = cookie_file_error
+                        failures.append(f"cookie file: {cookie_file_error}")
+                    else:
+                        failures = []
+                if failures or not cookie_file:
+                    raise RuntimeError(f"{last_error} Cookie attempts: {'; '.join(failures) or 'none detected'}.") from first_error
         self.progress(
             {
                 "type": "complete",

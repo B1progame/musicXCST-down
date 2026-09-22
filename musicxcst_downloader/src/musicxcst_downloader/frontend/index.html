@@ -236,6 +236,15 @@
             <label class="toggle"><input id="setUseBrowserCookies" type="checkbox" checked /><span>Retry YouTube with browser cookies when needed</span></label>
             <label class="field"><span>Browser cookie source</span><select id="setBrowserCookieSource"><option value="auto">All installed browsers (automatic)</option><option value="chrome">Chrome only</option><option value="edge">Edge only</option><option value="firefox">Firefox only</option><option value="brave">Brave only</option><option value="chromium">Chromium only</option><option value="opera">Opera only</option><option value="vivaldi">Vivaldi only</option></select></label>
             <p class="mini-note full">Browser cookies are only read after a normal yt-dlp attempt fails. Close the browser if cookie access is locked. Only enable this on a trusted computer.</p>
+            <div class="ffmpeg-card full">
+              <h3>Cookie File Fallback</h3>
+              <p>If browser-cookie access fails, export a Netscape-format <code>cookies.txt</code> file using a trusted exporter, then import it here. It is stored as a local path and never uploaded by MusicXCST.</p>
+              <div class="actions compact">
+                <button id="importCookieFileBtn" class="secondary" type="button">Import cookies.txt</button>
+                <button id="cookieGuideBtn" class="ghost" type="button" data-external-url="https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp">How to export cookies</button>
+              </div>
+              <pre id="cookieFileStatus">No cookie file imported</pre>
+            </div>
             <label class="field"><span>Theme accent color</span><input id="setAccent" type="color" /></label>
             <label class="field"><span>FFmpeg mode</span><select id="setFfmpegMode"><option value="system">system</option><option value="custom">custom path</option><option value="managed">managed</option></select></label>
             <label class="field"><span>Custom FFmpeg path</span><div class="inline-field"><input id="setFfmpegPath" /><button id="selectFfmpegBtn" class="icon-button" type="button">...</button></div></label>
@@ -285,7 +294,7 @@
               </div>
             </div>
             <div class="about-badges">
-              <span>Version <strong id="appVersionBadge">4.2.3</strong></span>
+              <span>Version <strong id="appVersionBadge">4.3.0</strong></span>
               <span>Standalone app</span>
               <span>No telemetry</span>
               <span>Private use</span>

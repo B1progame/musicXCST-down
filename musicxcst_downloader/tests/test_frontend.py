@@ -103,6 +103,9 @@ def test_start_screen_is_shown_on_every_launch_and_only_dismissed_for_session():
     assert 'id="setShowStartScreen"' in html
     assert 'id="setUseBrowserCookies"' in html
     assert 'id="setBrowserCookieSource"' in html
+    assert 'id="importCookieFileBtn"' in html
+    assert 'id="cookieGuideBtn"' in html
+    assert 'select_cookie_file' in js
     assert 'saveSettingsPatch({ first_run_confirmed: true })' not in js
 
 

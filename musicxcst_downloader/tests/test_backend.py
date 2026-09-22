@@ -95,6 +95,33 @@ def test_auto_browser_cookie_source_returns_all_detected_browsers(monkeypatch):
     assert cookie_browser_candidates("auto") == ("brave", "chrome", "edge")
 
 
+def test_analysis_uses_imported_cookie_file_after_browser_retries(tmp_path: Path, monkeypatch):
+    cookie_file = tmp_path / "cookies.txt"
+    cookie_file.write_text("# Netscape HTTP Cookie File\n", encoding="utf-8")
+    attempts = []
+
+    class FakeYoutubeDL:
+        def __init__(self, options):
+            attempts.append(options)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def extract_info(self, url, download=False):
+            if "cookiefile" not in attempts[-1]:
+                raise RuntimeError("browser cookies failed")
+            return {"title": "Imported cookie video", "formats": []}
+
+    monkeypatch.setattr("musicxcst_downloader.backend.downloader.YoutubeDL", FakeYoutubeDL)
+    result = analyze_url("https://example.com/video", use_browser_cookies=False, cookie_file_path=str(cookie_file))
+
+    assert result["title"] == "Imported cookie video"
+    assert attempts[-1]["cookiefile"] == str(cookie_file)
+
+
 def test_settings_migration_preserves_existing_preferences(tmp_path: Path):
     path = tmp_path / "settings.json"
     path.write_text(
