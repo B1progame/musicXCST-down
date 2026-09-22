@@ -8,6 +8,7 @@ from urllib.error import HTTPError
 from musicxcst_downloader.backend.downloader import (
     DownloadWorker,
     analyze_url,
+    cookie_browser_candidates,
     build_format_selector,
     format_supports_dolby_atmos,
     output_filename_from_title,
@@ -80,6 +81,10 @@ def test_analysis_retries_with_browser_cookies_after_normal_failure(monkeypatch)
     assert result["title"] == "Cookie video"
     assert len(attempts) == 2
     assert attempts[1]["cookiesfrombrowser"] == ("edge",)
+
+
+def test_explicit_browser_cookie_source_is_respected():
+    assert cookie_browser_candidates("brave") == ("brave",)
 
 
 def test_settings_migration_preserves_existing_preferences(tmp_path: Path):

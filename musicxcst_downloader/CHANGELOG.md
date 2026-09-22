@@ -1,4 +1,10 @@
-# MusicXCST Downloader 4.2.0
+# MusicXCST Downloader 4.2.1
+
+## 4.2.1
+
+- Fixed automatic browser-cookie fallback selecting the wrong browser.
+- Auto detection now checks actual browser cookie data folders and prioritizes detected Brave data.
+- Cookie retry failures now report every browser attempted instead of only the final error.
 
 ## 4.2.0
 

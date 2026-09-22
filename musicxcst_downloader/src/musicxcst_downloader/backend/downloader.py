@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 import threading
 import time
@@ -21,12 +22,30 @@ VIDEO_FORMATS = {"mp4", "mkv", "webm", "mov", "avi", "m4v", "ts"}
 DOWNLOAD_MODES = {"audio", "video", "video-audio"}
 VIDEO_QUALITIES = {"best", "2160", "1440", "1080", "720", "480", "360"}
 ATMOS_AUDIO_CODECS = {"eac3", "ec3", "ec-3"}
-COOKIE_BROWSERS = ("chrome", "edge", "firefox", "brave", "chromium", "opera", "vivaldi")
+COOKIE_BROWSERS = ("brave", "chrome", "edge", "firefox", "chromium", "opera", "vivaldi")
+
+
+def _browser_cookie_data_exists(browser: str) -> bool:
+    local_app_data = Path(os.environ.get("LOCALAPPDATA", ""))
+    roaming_app_data = Path(os.environ.get("APPDATA", ""))
+    locations = {
+        "brave": (local_app_data / "BraveSoftware" / "Brave-Browser" / "User Data",),
+        "chrome": (local_app_data / "Google" / "Chrome" / "User Data",),
+        "edge": (local_app_data / "Microsoft" / "Edge" / "User Data",),
+        "firefox": (roaming_app_data / "Mozilla" / "Firefox" / "Profiles",),
+        "chromium": (local_app_data / "Chromium" / "User Data",),
+        "opera": (roaming_app_data / "Opera Software" / "Opera Stable",),
+        "vivaldi": (local_app_data / "Vivaldi" / "User Data",),
+    }
+    return any(path and path.exists() for path in locations.get(browser, ()))
 
 
 def cookie_browser_candidates(source: str = "auto") -> tuple[str, ...]:
     source = str(source or "auto").lower()
-    return COOKIE_BROWSERS if source == "auto" else (source,)
+    if source != "auto":
+        return (source,)
+    detected = tuple(browser for browser in COOKIE_BROWSERS if _browser_cookie_data_exists(browser))
+    return detected or COOKIE_BROWSERS
 
 
 def _with_browser_cookies(options: dict, browser: str) -> dict:
@@ -146,7 +165,9 @@ def analyze_url(url: str, max_duration_warning_minutes: int = 60, use_browser_co
         if not use_browser_cookies:
             raise
         last_error = first_error
+        attempted = []
         for browser in cookie_browser_candidates(browser_cookie_source):
+            attempted.append(browser)
             LOGGER.info("Analysis failed; retrying with %s browser cookies", browser)
             try:
                 with YoutubeDL(_with_browser_cookies(options, browser)) as ydl:
@@ -156,7 +177,7 @@ def analyze_url(url: str, max_duration_warning_minutes: int = 60, use_browser_co
                 last_error = cookie_error
                 LOGGER.debug("Browser cookie analysis retry failed for %s", browser, exc_info=True)
         else:
-            raise last_error from first_error
+            raise RuntimeError(f"{last_error} Browser cookie attempts: {', '.join(attempted)}.") from first_error
     formats = info.get("formats") or []
     audio_formats = [f for f in formats if f.get("acodec") not in (None, "none")]
     video_formats = [f for f in formats if f.get("vcodec") not in (None, "none")]
@@ -368,7 +389,9 @@ class DownloadWorker:
             if not request.get("use_browser_cookies"):
                 raise
             last_error = first_error
+            attempted = []
             for browser in cookie_browser_candidates(request.get("browser_cookie_source", "auto")):
+                attempted.append(browser)
                 self.progress({"type": "terminal", "line": f"Retrying with {browser} browser cookies..."})
                 try:
                     with YoutubeDL(_with_browser_cookies(options, browser)) as ydl:
@@ -378,7 +401,7 @@ class DownloadWorker:
                     last_error = cookie_error
                     LOGGER.debug("Browser cookie download retry failed for %s", browser, exc_info=True)
             else:
-                raise last_error from first_error
+                raise RuntimeError(f"{last_error} Browser cookie attempts: {', '.join(attempted)}.") from first_error
         self.progress(
             {
                 "type": "complete",
