@@ -1,4 +1,9 @@
-# MusicXCST Downloader 4.0.3
+# MusicXCST Downloader 4.0.4
+
+## 4.0.4
+
+- Fixed startup version fields staying at “unknown” when the pywebview bridge initializes after the page.
+- Added bridge-ready startup handling, duplicate-init protection, and visible startup error feedback.
 
 ## 4.0.3
 

@@ -22,6 +22,8 @@ const state = {
   currentYtdlpVersion: "unknown",
 };
 
+let initStarted = false;
+
 const $ = (id) => document.getElementById(id);
 const elements = {};
 const views = {
@@ -601,6 +603,21 @@ async function init() {
   });
 }
 
+function startInitialization() {
+  if (initStarted) return;
+  if (!getApiMethod("startup") && !getApiMethod("invoke")) return;
+  initStarted = true;
+  init().catch((error) => {
+    const message = describeError(error);
+    renderAppVersion("unknown");
+    renderYtdlp({ version: "unknown" });
+    setYtdlpUpdateState(false, "Retry yt-dlp check", true);
+    setAppUpdateState(false, "Retry app check", true);
+    setStatus("Could not connect to the app bridge.", message);
+    appendTerminal(`Startup failed: ${message}`);
+  });
+}
+
 function renderFfmpeg(info) {
   $("ffmpegMini").textContent = info.ready ? "FFmpeg ready" : "FFmpeg missing";
   $("ffmpegStatus").textContent = `ffmpeg: ${info.ffmpeg_version}\n${info.ffmpeg_path || "No path"}\n\nffprobe: ${info.ffprobe_version}\n${info.ffprobe_path || "No path"}`;
@@ -1010,5 +1027,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (state.activePage === "web" && event.key === "Escape") $("webStopBtn").click();
   });
 
-  init();
+  window.addEventListener("pywebviewready", startInitialization, { once: true });
+  startInitialization();
 });

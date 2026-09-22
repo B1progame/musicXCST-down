@@ -64,3 +64,11 @@ def test_app_update_button_stays_enabled_when_current():
 
     assert 'event.available === false ? "Check for updates"' in js
     assert 'event.available === false ? "Check for updates" : "Update App"), true' in js
+
+
+def test_startup_waits_for_pywebview_bridge_and_reports_failures():
+    js = (FRONTEND / "app.js").read_text(encoding="utf-8")
+
+    assert 'window.addEventListener("pywebviewready", startInitialization' in js
+    assert "if (initStarted) return;" in js
+    assert 'Could not connect to the app bridge.' in js
