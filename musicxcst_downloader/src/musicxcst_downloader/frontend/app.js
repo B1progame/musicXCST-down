@@ -212,6 +212,56 @@ function setProgress(percent, event = null) {
   });
 }
 
+function setAnalysisState(active, { ok = null, detail = "" } = {}) {
+  state.analyzing = active;
+  const button = $("analyzeBtn");
+  const workflowStatus = $("workflowStatus");
+  const workflowStatusText = $("workflowStatusText");
+  const workflowPanel = document.querySelector(".workflow-panel");
+  if (!button || !workflowStatus || !workflowStatusText) return;
+
+  button.disabled = active;
+  button.classList.toggle("is-analyzing", active);
+  button.setAttribute("aria-busy", active ? "true" : "false");
+  button.setAttribute("aria-label", active ? "Analyzing link" : "Analyze link");
+  button.replaceChildren();
+  const content = document.createElement("span");
+  content.className = "analyze-btn-content";
+  if (active) {
+    const spinner = document.createElement("span");
+    spinner.className = "analyze-spinner";
+    spinner.setAttribute("aria-hidden", "true");
+    content.append(spinner, document.createTextNode("Analyzing…"));
+  } else {
+    content.textContent = "Analyze Link";
+  }
+  button.append(content);
+
+  workflowStatus.classList.toggle("is-analyzing", active);
+  workflowPanel?.classList.toggle("analysis-active", active);
+  if (active) {
+    workflowStatusText.textContent = "Analyzing";
+    setProgress(0);
+    elements.progressPercent.textContent = "…";
+    elements.progressStage.textContent = "Analyzing";
+    elements.progressBytes.textContent = detail || "Scanning streams…";
+    return;
+  }
+
+  workflowStatusText.textContent = ok === false ? "Error" : "Ready";
+  if (ok === true) {
+    setProgress(100);
+    elements.progressPercent.textContent = "100%";
+    elements.progressStage.textContent = "Analysis complete";
+    elements.progressBytes.textContent = detail || "Streams scanned";
+  } else if (ok === false) {
+    setProgress(0);
+    elements.progressPercent.textContent = "0%";
+    elements.progressStage.textContent = "Analysis failed";
+    elements.progressBytes.textContent = detail || "--";
+  }
+}
+
 function extensionForFormat() {
   return $("formatSelect").value === "m4a" ? "m4a" : $("formatSelect").value;
 }
@@ -466,11 +516,12 @@ function queueHistoryRender() {
 window.MusicXCST = {
   receiveEvent(event) {
     if (event.type === "analyze_status") {
-      state.analyzing = true;
+      setAnalysisState(true, { detail: event.status || "Scanning streams…" });
       setStatus(event.status);
     }
     if (event.type === "analysis") {
-      state.analyzing = false;
+      const scanDetail = event.ok ? `${event.data.formats_count || 0} streams scanned` : event.error;
+      setAnalysisState(false, { ok: event.ok, detail: scanDetail });
       if (event.ok) {
         renderAnalysis(event.data);
         appendTerminal(`Analysis complete: ${event.data.formats_count || 0} streams scanned.`);
@@ -745,11 +796,21 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   $("analyzeBtn").addEventListener("click", async () => {
-    setProgress(0);
-    appendTerminal("$ analyze " + $("urlInput").value.trim());
-    setStatus("Starting analysis...");
-    const result = await callApi("analyze", $("urlInput").value.trim());
-    if (!result.ok) setStatus(result.error);
+    const url = $("urlInput").value.trim();
+    setAnalysisState(true);
+    appendTerminal("$ analyze " + url);
+    setStatus("Analyzing link...");
+    try {
+      const result = await callApi("analyze", url);
+      if (!result.ok) {
+        setAnalysisState(false, { ok: false, detail: result.error });
+        setStatus(result.error);
+      }
+    } catch (error) {
+      const message = describeError(error);
+      setAnalysisState(false, { ok: false, detail: message });
+      setStatus(`Analysis failed: ${message}`);
+    }
   });
 
   $("formatSelect").addEventListener("change", () => {

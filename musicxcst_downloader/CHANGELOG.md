@@ -1,4 +1,10 @@
-# MusicXCST Downloader 4.0.7
+# MusicXCST Downloader 4.0.8
+
+## 4.0.8
+
+- Added a visible animated analysis state with a circular spinner and indeterminate progress bar while Analyze Link scans streams.
+- Added clear Analyzing, complete, and failed states to the workflow status and operation panel.
+- Kept reduced-motion support for the new analysis animation.
 
 ## 4.0.7
 

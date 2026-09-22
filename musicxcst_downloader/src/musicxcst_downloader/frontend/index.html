@@ -60,13 +60,13 @@
             <section class="panel workflow-panel">
               <div class="panel-heading workflow-heading">
                 <div><span class="section-kicker">STEP 1</span><h2>Start a download</h2><p class="panel-subtitle">Analyze the source before choosing your output.</p></div>
-                <span class="panel-status"><span class="status-dot"></span> Ready</span>
+                <span id="workflowStatus" class="panel-status"><span class="status-dot"></span><span id="workflowStatusText">Ready</span></span>
               </div>
               <label class="field full">
                 <span>Music, audio, or video link</span>
                 <div class="inline-field">
                   <input id="urlInput" type="url" placeholder="https://..." autocomplete="off" />
-                  <button id="analyzeBtn" class="secondary">Analyze Link</button>
+                  <button id="analyzeBtn" class="secondary"><span class="analyze-btn-content"><span>Analyze Link</span></span></button>
                 </div>
               </label>
 
@@ -280,7 +280,7 @@
               </div>
             </div>
             <div class="about-badges">
-              <span>Version <strong id="appVersionBadge">4.0.7</strong></span>
+              <span>Version <strong id="appVersionBadge">4.0.8</strong></span>
               <span>Standalone app</span>
               <span>No telemetry</span>
               <span>Private use</span>

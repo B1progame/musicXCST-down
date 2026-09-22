@@ -101,3 +101,17 @@ def test_start_screen_is_shown_on_every_launch_and_only_dismissed_for_session():
     assert '$("firstRun").classList.remove("hidden")' in js
     assert '$("firstRun").classList.add("hidden")' in js
     assert 'saveSettingsPatch({ first_run_confirmed: true })' not in js
+
+
+def test_analyze_link_has_visible_indeterminate_progress_state():
+    html = (FRONTEND / "index.html").read_text(encoding="utf-8")
+    css = (FRONTEND / "styles.css").read_text(encoding="utf-8")
+    js = (FRONTEND / "app.js").read_text(encoding="utf-8")
+
+    assert 'id="workflowStatusText">Ready</span>' in html
+    assert 'class="analyze-btn-content"' in html
+    assert ".analyze-spinner" in css
+    assert ".analysis-active .progress-bar" in css
+    assert "function setAnalysisState" in js
+    assert "setAnalysisState(true" in js
+    assert "setAnalysisState(false" in js

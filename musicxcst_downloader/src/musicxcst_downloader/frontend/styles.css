@@ -1429,6 +1429,62 @@ html[data-theme="aurora"] .panel {
   background: rgba(255, 255, 255, 0.03);
 }
 
+.analyze-btn-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.analyze-btn.is-analyzing {
+  cursor: progress;
+}
+
+.analyze-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: analyzeSpin 720ms linear infinite;
+}
+
+.panel-status.is-analyzing {
+  color: var(--accent);
+  border-color: rgba(var(--accent-rgb), 0.34);
+  background: rgba(var(--accent-rgb), 0.09);
+}
+
+.panel-status.is-analyzing .status-dot {
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.72);
+  animation: analyzePulse 1.1s ease-in-out infinite;
+}
+
+.analysis-active .progress-wrap {
+  border-color: rgba(var(--accent-rgb), 0.35);
+  box-shadow: 0 0 24px rgba(var(--accent-rgb), 0.08);
+}
+
+.analysis-active .progress-bar {
+  width: 38% !important;
+  background: linear-gradient(90deg, transparent, var(--accent), #ffffff, var(--accent), transparent);
+  animation: analysisProgress 1.2s ease-in-out infinite;
+}
+
+@keyframes analyzeSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes analyzePulse {
+  50% { transform: scale(1.35); opacity: 0.62; }
+}
+
+@keyframes analysisProgress {
+  0%, 100% { transform: translateX(-110%); opacity: 0.46; }
+  50% { transform: translateX(165%); opacity: 1; }
+}
+
 .field {
   gap: 9px;
 }
