@@ -1,4 +1,9 @@
-# MusicXCST Downloader 4.0.6
+# MusicXCST Downloader 4.0.7
+
+## 4.0.7
+
+- Restored the legal start screen on every application launch.
+- Changed “I Understand” to dismiss the screen for the current session without persisting it as completed.
 
 ## 4.0.6
 

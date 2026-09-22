@@ -594,7 +594,9 @@ async function init() {
   renderFfmpeg(boot.ffmpeg);
   renderYtdlp(boot.ytdlp);
   renderAppVersion(boot.appVersion);
-  $("firstRun").classList.toggle("hidden", Boolean(boot.settings.first_run_confirmed));
+  // The legal start screen is intentionally shown on every application launch.
+  // It is dismissed for this session only when the user acknowledges it.
+  $("firstRun").classList.remove("hidden");
   setYtdlpUpdateState(true, "Checking...");
   setAppUpdateState(true, "Checking...");
   callApi("check_app_update").catch(() => {
@@ -739,7 +741,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   $("acceptNotice").addEventListener("click", async () => {
-    await saveSettingsPatch({ first_run_confirmed: true });
     $("firstRun").classList.add("hidden");
   });
 

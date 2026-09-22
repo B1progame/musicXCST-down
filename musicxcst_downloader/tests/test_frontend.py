@@ -91,3 +91,13 @@ def test_embedded_browser_tracks_content_scroll():
     assert 'document.querySelector(".content")' in js
     assert 'addEventListener("scroll", scheduleBrowserLayout' in js
     assert "requestAnimationFrame(() =>" in js
+
+
+def test_start_screen_is_shown_on_every_launch_and_only_dismissed_for_session():
+    html = (FRONTEND / "index.html").read_text(encoding="utf-8")
+    js = (FRONTEND / "app.js").read_text(encoding="utf-8")
+
+    assert 'id="firstRun" class="notice-backdrop">' in html
+    assert '$("firstRun").classList.remove("hidden")' in js
+    assert '$("firstRun").classList.add("hidden")' in js
+    assert 'saveSettingsPatch({ first_run_confirmed: true })' not in js
