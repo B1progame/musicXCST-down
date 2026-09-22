@@ -1,4 +1,10 @@
-# MusicXCST Downloader 5.0.0
+# MusicXCST Downloader 5.0.1
+
+## 5.0.1
+
+- Downloads now require a successful analysis of the exact current link, preventing stale or failed analysis data from being exported.
+- Changing the link immediately invalidates the previous analysis and disables Download until analysis succeeds.
+- Failed browser-cookie analysis no longer leaves the Download action available.
 
 ## 5.0.0
 

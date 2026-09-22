@@ -397,6 +397,19 @@ def test_startup_reports_installed_ytdlp_version(monkeypatch):
     assert startup["ytdlp"]["latest_version"] is None
 
 
+def test_download_requires_successful_analysis_for_the_same_url(tmp_path: Path):
+    from musicxcst_downloader.app import Api
+
+    result = Api().download({
+        "url": "https://www.youtube.com/watch?v=video1234567",
+        "output_folder": str(tmp_path),
+        "legal_confirmed": True,
+    })
+
+    assert result["ok"] is False
+    assert "Analyze this exact link successfully" in result["error"]
+
+
 def test_download_update_launches_installer_with_parent_pid(monkeypatch, tmp_path):
     class Response:
         headers = {"Content-Length": "4"}

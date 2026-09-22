@@ -82,6 +82,7 @@ class Api:
         configure_logging(self._settings.logging_level)
         self._worker = DownloadWorker(self._emit)
         self._last_analysis: dict | None = None
+        self._last_analysis_url = ""
         self._ffmpeg_download_running = False
         self._ytdlp_update_running = False
         self._emit_lock = threading.Lock()
@@ -319,15 +320,22 @@ class Api:
         if not validate_url(url):
             return {"ok": False, "error": "Enter a valid http or https URL."}
 
+        normalized_url = url.strip()
+        self._last_analysis = None
+        self._last_analysis_url = ""
+
         def run() -> None:
             try:
                 self._emit({"type": "analyze_status", "status": "Analyzing link..."})
-                info = analyze_url(url, self._settings.max_duration_warning_minutes, self._settings.use_browser_cookies, self._settings.browser_cookie_source, self._settings.cookie_file_path)
+                info = analyze_url(normalized_url, self._settings.max_duration_warning_minutes, self._settings.use_browser_cookies, self._settings.browser_cookie_source, self._settings.cookie_file_path)
                 self._last_analysis = info
+                self._last_analysis_url = normalized_url
                 default_ext = self._settings.default_format
                 info["suggested_filename"] = output_filename_from_title(info["safe_filename"], default_ext)
                 self._emit({"type": "analysis", "ok": True, "data": info})
             except Exception as exc:
+                self._last_analysis = None
+                self._last_analysis_url = ""
                 LOGGER.exception("Analyze failed")
                 self._emit({"type": "analysis", "ok": False, "error": str(exc)})
 
@@ -339,6 +347,12 @@ class Api:
             return {"ok": False, "error": "Confirm that you have the right to download this content first."}
         if not validate_url(request.get("url", "")):
             return {"ok": False, "error": "Enter a valid http or https URL."}
+        requested_url = str(request.get("url") or "").strip()
+        if not self._last_analysis or self._last_analysis_url != requested_url:
+            return {
+                "ok": False,
+                "error": "Analyze this exact link successfully before downloading. Fix the analysis error or retry the analysis first.",
+            }
         if self._worker.running:
             return {"ok": False, "error": "A download is already running."}
 

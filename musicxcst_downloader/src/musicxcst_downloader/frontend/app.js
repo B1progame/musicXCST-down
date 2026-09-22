@@ -273,12 +273,14 @@ function setProgress(percent, event = null) {
 function setAnalysisState(active, { ok = null, detail = "" } = {}) {
   state.analyzing = active;
   const button = $("analyzeBtn");
+  const downloadButton = $("downloadBtn");
   const workflowStatus = $("workflowStatus");
   const workflowStatusText = $("workflowStatusText");
   const workflowPanel = document.querySelector(".workflow-panel");
   if (!button || !workflowStatus || !workflowStatusText) return;
 
   button.disabled = active;
+  if (downloadButton) downloadButton.disabled = active || ok !== true || state.downloading;
   button.classList.toggle("is-analyzing", active);
   button.setAttribute("aria-busy", active ? "true" : "false");
   button.setAttribute("aria-label", active ? "Analyzing link" : "Analyze link");
@@ -888,6 +890,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  $("urlInput").addEventListener("input", () => {
+    if (!state.analyzing) setAnalysisState(false, { detail: "Analyze this link before downloading" });
+  });
+
   $("formatSelect").addEventListener("change", () => {
     $("formatSelect").value = normalizeFormat($("formatSelect").value);
     ensureFilenameExtension();
@@ -952,6 +958,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  $("downloadBtn").disabled = true;
   $("downloadBtn").addEventListener("click", () => performDownload(false));
 
   const openWeb = async (value = $("webAddress").value) => {
