@@ -1,4 +1,9 @@
-# MusicXCST Downloader 4.0.2
+# MusicXCST Downloader 4.0.3
+
+## 4.0.3
+
+- Kept the App Update control enabled when the installed app is already current.
+- Changed the current-state action label to “Check for updates”; only active checks and installs disable the button.
 
 ## 4.0.2
 - Fixed the Settings rainbow border so it is completely neutral unless an app update is actually available.

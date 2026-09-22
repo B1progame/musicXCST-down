@@ -537,7 +537,7 @@ window.MusicXCST = {
       appendTerminal(event.status || "yt-dlp update finished.");
     }
     if (event.type === "app_update") {
-      setAppUpdateState(Boolean(event.running), event.running ? "Updating..." : (event.available === false ? "App up to date" : "Update App"), event.available !== false);
+      setAppUpdateState(Boolean(event.running), event.running ? "Updating..." : (event.available === false ? "Check for updates" : "Update App"), true);
       if (event.available !== undefined) setUpdateReminder(Boolean(event.available), event.version);
       if (event.current_version || event.version) {
         const current = event.current_version || state.currentVersion || "unknown";
@@ -597,7 +597,7 @@ async function init() {
   setAppUpdateState(true, "Checking...");
   callApi("check_app_update").catch(() => {
     setYtdlpUpdateState(false, "Update yt-dlp", true);
-    setAppUpdateState(false, "Update App", true);
+    setAppUpdateState(false, "Check for updates", true);
   });
 }
 

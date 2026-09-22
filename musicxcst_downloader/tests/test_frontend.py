@@ -57,3 +57,10 @@ def test_aurora_has_coordinated_page_and_dropdown_motion():
     assert 'html[data-theme="aurora"] select:hover' in css
     assert "appearance: none" in css
     assert ".rainbow-settings::before" in css
+
+
+def test_app_update_button_stays_enabled_when_current():
+    js = (FRONTEND / "app.js").read_text(encoding="utf-8")
+
+    assert 'event.available === false ? "Check for updates"' in js
+    assert 'event.available === false ? "Check for updates" : "Update App"), true' in js
