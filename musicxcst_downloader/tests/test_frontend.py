@@ -72,3 +72,14 @@ def test_startup_waits_for_pywebview_bridge_and_reports_failures():
     assert 'window.addEventListener("pywebviewready", startInitialization' in js
     assert "if (initStarted) return;" in js
     assert 'Could not connect to the app bridge.' in js
+
+
+def test_video_download_is_visible_in_first_run_and_download_copy():
+    html = (FRONTEND / "index.html").read_text(encoding="utf-8")
+    legal = (ROOT / "src" / "musicxcst_downloader" / "backend" / "legal.py").read_text(encoding="utf-8")
+
+    assert "music, audio, or video" in html
+    assert "Music, audio, or video link" in html
+    assert "music, audio, or video" in legal
+    assert 'value="video"' in html
+    assert 'value="video-audio"' in html

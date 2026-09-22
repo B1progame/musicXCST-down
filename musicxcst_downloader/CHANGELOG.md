@@ -1,4 +1,9 @@
-# MusicXCST Downloader 4.0.4
+# MusicXCST Downloader 4.0.5
+
+## 4.0.5
+
+- Fixed the first-run notice and download label incorrectly describing the app as audio-only.
+- Made the available video and video-plus-audio modes clearly visible.
 
 ## 4.0.4
 
