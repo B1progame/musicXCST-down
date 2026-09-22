@@ -80,7 +80,7 @@ def test_analysis_retries_with_browser_cookies_after_normal_failure(monkeypatch)
 
     assert result["title"] == "Cookie video"
     assert len(attempts) == 2
-    assert attempts[1]["cookiesfrombrowser"] == ("edge",)
+    assert attempts[1]["cookiesfrombrowser"][0] == "edge"
 
 
 def test_explicit_browser_cookie_source_is_respected():

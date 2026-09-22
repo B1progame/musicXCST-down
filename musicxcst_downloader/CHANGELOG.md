@@ -1,4 +1,10 @@
-# MusicXCST Downloader 4.2.2
+# MusicXCST Downloader 4.2.3
+
+## 4.2.3
+
+- Fixed browser-cookie retries to inspect actual browser profiles such as Brave Default and Profile 1.
+- Ignored installed browsers that have no real cookie database, avoiding misleading Chromium/Firefox errors.
+- Added complete per-profile cookie failure details and guidance to close browsers when databases are locked.
 
 ## 4.2.2
 

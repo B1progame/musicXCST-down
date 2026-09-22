@@ -212,6 +212,11 @@ function describeAnalysisError(error) {
       guidance: "Check your internet connection, firewall, VPN, and proxy settings, then retry.",
     },
     {
+      match: /cookie|database is locked|could not find.*database/i,
+      summary: "Browser cookies could not be read.",
+      guidance: "Close every browser window, make sure YouTube is signed in in at least one detected browser, then retry. Auto mode will test every detected profile.",
+    },
+    {
       match: /unsupported URL|no suitable extractor|not a valid URL/i,
       summary: "This link format is not supported.",
       guidance: "Paste the full YouTube, YouTube Music, or supported provider URL instead of a search page or shortened text.",

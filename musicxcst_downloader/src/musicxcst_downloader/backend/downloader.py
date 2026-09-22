@@ -28,18 +28,43 @@ COOKIE_BROWSERS = ("brave", "chrome", "edge", "firefox", "chromium", "opera", "v
 def _browser_cookie_data_exists(browser: str) -> bool:
     local_app_data = Path(os.environ.get("LOCALAPPDATA", ""))
     roaming_app_data = Path(os.environ.get("APPDATA", ""))
-    program_files = Path(os.environ.get("PROGRAMFILES", ""))
-    program_files_x86 = Path(os.environ.get("PROGRAMFILES(X86)", ""))
     locations = {
-        "brave": (local_app_data / "BraveSoftware" / "Brave-Browser" / "User Data", program_files / "BraveSoftware" / "Brave-Browser" / "Application" / "brave.exe", program_files_x86 / "BraveSoftware" / "Brave-Browser" / "Application" / "brave.exe"),
-        "chrome": (local_app_data / "Google" / "Chrome" / "User Data", program_files / "Google" / "Chrome" / "Application" / "chrome.exe", program_files_x86 / "Google" / "Chrome" / "Application" / "chrome.exe"),
-        "edge": (local_app_data / "Microsoft" / "Edge" / "User Data", program_files / "Microsoft" / "Edge" / "Application" / "msedge.exe", program_files_x86 / "Microsoft" / "Edge" / "Application" / "msedge.exe"),
-        "firefox": (roaming_app_data / "Mozilla" / "Firefox" / "Profiles", program_files / "Mozilla Firefox" / "firefox.exe", program_files_x86 / "Mozilla Firefox" / "firefox.exe"),
+        "brave": (local_app_data / "BraveSoftware" / "Brave-Browser" / "User Data",),
+        "chrome": (local_app_data / "Google" / "Chrome" / "User Data",),
+        "edge": (local_app_data / "Microsoft" / "Edge" / "User Data",),
+        "firefox": (roaming_app_data / "Mozilla" / "Firefox" / "Profiles",),
         "chromium": (local_app_data / "Chromium" / "User Data",),
         "opera": (roaming_app_data / "Opera Software" / "Opera Stable",),
-        "vivaldi": (local_app_data / "Vivaldi" / "User Data", program_files / "Vivaldi" / "Application" / "vivaldi.exe", program_files_x86 / "Vivaldi" / "Application" / "vivaldi.exe"),
+        "vivaldi": (local_app_data / "Vivaldi" / "User Data",),
     }
     return any(path and path.exists() for path in locations.get(browser, ()))
+
+
+def _browser_cookie_profiles(browser: str) -> tuple[str | None, ...]:
+    local_app_data = Path(os.environ.get("LOCALAPPDATA", ""))
+    roaming_app_data = Path(os.environ.get("APPDATA", ""))
+    roots = {
+        "brave": (local_app_data / "BraveSoftware" / "Brave-Browser" / "User Data",),
+        "chrome": (local_app_data / "Google" / "Chrome" / "User Data",),
+        "edge": (local_app_data / "Microsoft" / "Edge" / "User Data",),
+        "firefox": (roaming_app_data / "Mozilla" / "Firefox" / "Profiles",),
+        "chromium": (local_app_data / "Chromium" / "User Data",),
+        "opera": (roaming_app_data / "Opera Software" / "Opera Stable",),
+        "vivaldi": (local_app_data / "Vivaldi" / "User Data",),
+    }.get(browser, ())
+    profiles: list[str] = []
+    for root in roots:
+        if not root.exists():
+            continue
+        if browser == "firefox":
+            profiles.extend(path.name for path in root.iterdir() if path.is_dir() and (path / "cookies.sqlite").exists())
+        else:
+            profiles.extend(
+                path.name
+                for path in root.iterdir()
+                if path.is_dir() and ((path / "Cookies").exists() or (path / "Network" / "Cookies").exists())
+            )
+    return tuple(dict.fromkeys(profiles)) or (None,) if _browser_cookie_data_exists(browser) else ()
 
 
 def cookie_browser_candidates(source: str = "auto") -> tuple[str, ...]:
@@ -50,9 +75,20 @@ def cookie_browser_candidates(source: str = "auto") -> tuple[str, ...]:
     return detected or COOKIE_BROWSERS
 
 
-def _with_browser_cookies(options: dict, browser: str) -> dict:
+def _cookie_attempts(source: str = "auto") -> tuple[tuple[str, str | None], ...]:
+    browsers = cookie_browser_candidates(source)
+    attempts = []
+    for browser in browsers:
+        profiles = _browser_cookie_profiles(browser)
+        if not profiles and str(source or "auto").lower() != "auto":
+            profiles = (None,)
+        attempts.extend((browser, profile) for profile in profiles)
+    return tuple(attempts)
+
+
+def _with_browser_cookies(options: dict, browser: str, profile: str | None = None) -> dict:
     cookie_options = dict(options)
-    cookie_options["cookiesfrombrowser"] = (browser,)
+    cookie_options["cookiesfrombrowser"] = (browser, profile) if profile else (browser,)
     return cookie_options
 
 
@@ -167,19 +203,20 @@ def analyze_url(url: str, max_duration_warning_minutes: int = 60, use_browser_co
         if not use_browser_cookies:
             raise
         last_error = first_error
-        attempted = []
-        for browser in cookie_browser_candidates(browser_cookie_source):
-            attempted.append(browser)
-            LOGGER.info("Analysis failed; retrying with %s browser cookies", browser)
+        failures = []
+        for browser, profile in _cookie_attempts(browser_cookie_source):
+            label = f"{browser}/{profile}" if profile else browser
+            LOGGER.info("Analysis failed; retrying with %s browser cookies", label)
             try:
-                with YoutubeDL(_with_browser_cookies(options, browser)) as ydl:
+                with YoutubeDL(_with_browser_cookies(options, browser, profile)) as ydl:
                     info = ydl.extract_info(url, download=False)
                 break
             except Exception as cookie_error:
                 last_error = cookie_error
+                failures.append(f"{label}: {cookie_error}")
                 LOGGER.debug("Browser cookie analysis retry failed for %s", browser, exc_info=True)
         else:
-            raise RuntimeError(f"{last_error} Browser cookie attempts: {', '.join(attempted)}.") from first_error
+            raise RuntimeError(f"{last_error} Browser cookie attempts: {'; '.join(failures) or 'none detected'}.") from first_error
     formats = info.get("formats") or []
     audio_formats = [f for f in formats if f.get("acodec") not in (None, "none")]
     video_formats = [f for f in formats if f.get("vcodec") not in (None, "none")]
@@ -391,19 +428,20 @@ class DownloadWorker:
             if not request.get("use_browser_cookies"):
                 raise
             last_error = first_error
-            attempted = []
-            for browser in cookie_browser_candidates(request.get("browser_cookie_source", "auto")):
-                attempted.append(browser)
-                self.progress({"type": "terminal", "line": f"Retrying with {browser} browser cookies..."})
+            failures = []
+            for browser, profile in _cookie_attempts(request.get("browser_cookie_source", "auto")):
+                label = f"{browser}/{profile}" if profile else browser
+                self.progress({"type": "terminal", "line": f"Retrying with {label} browser cookies..."})
                 try:
-                    with YoutubeDL(_with_browser_cookies(options, browser)) as ydl:
+                    with YoutubeDL(_with_browser_cookies(options, browser, profile)) as ydl:
                         ydl.download([url])
                     break
                 except Exception as cookie_error:
                     last_error = cookie_error
+                    failures.append(f"{label}: {cookie_error}")
                     LOGGER.debug("Browser cookie download retry failed for %s", browser, exc_info=True)
             else:
-                raise RuntimeError(f"{last_error} Browser cookie attempts: {', '.join(attempted)}.") from first_error
+                raise RuntimeError(f"{last_error} Browser cookie attempts: {'; '.join(failures) or 'none detected'}.") from first_error
         self.progress(
             {
                 "type": "complete",
