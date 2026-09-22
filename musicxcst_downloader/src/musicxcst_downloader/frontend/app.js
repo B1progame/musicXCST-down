@@ -863,6 +863,18 @@ document.addEventListener("DOMContentLoaded", () => {
     if (state.activePage === "web") syncBrowserLayout();
   });
   webResizeObserver.observe($("webViewport"));
+
+  let browserScrollFrame = 0;
+  const scheduleBrowserLayout = () => {
+    if (state.activePage !== "web" || browserScrollFrame) return;
+    browserScrollFrame = requestAnimationFrame(() => {
+      browserScrollFrame = 0;
+      syncBrowserLayout();
+    });
+  };
+  const contentScroller = document.querySelector(".content");
+  contentScroller?.addEventListener("scroll", scheduleBrowserLayout, { passive: true });
+  window.addEventListener("scroll", scheduleBrowserLayout, { passive: true, capture: true });
   window.addEventListener("resize", () => {
     if (state.activePage === "web") syncBrowserLayout();
   });

@@ -83,3 +83,11 @@ def test_video_download_is_visible_in_first_run_and_download_copy():
     assert "music, audio, or video" in legal
     assert 'value="video"' in html
     assert 'value="video-audio"' in html
+
+
+def test_embedded_browser_tracks_content_scroll():
+    js = (FRONTEND / "app.js").read_text(encoding="utf-8")
+
+    assert 'document.querySelector(".content")' in js
+    assert 'addEventListener("scroll", scheduleBrowserLayout' in js
+    assert "requestAnimationFrame(() =>" in js

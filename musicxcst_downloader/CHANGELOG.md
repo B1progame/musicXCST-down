@@ -1,4 +1,9 @@
-# MusicXCST Downloader 4.0.5
+# MusicXCST Downloader 4.0.6
+
+## 4.0.6
+
+- Fixed the embedded browser staying glued to its old position while the Web page scrolls.
+- Repositioned the native WebView2 control on content/window scrolling with animation-frame throttling.
 
 ## 4.0.5
 
