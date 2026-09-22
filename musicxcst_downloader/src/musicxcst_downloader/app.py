@@ -257,7 +257,12 @@ class Api:
                     if update.get("status"):
                         self._emit({"type": "terminal", "line": update["status"]})
 
-                download_and_launch_update(release["installer_url"], report, release.get("installer_digest", ""))
+                download_and_launch_update(
+                    release["installer_url"],
+                    report,
+                    release.get("installer_digest", ""),
+                    release.get("installer_api_url", ""),
+                )
                 self._emit({"type": "app_update", "running": False, "ok": True, "available": True, "version": release["version"], "status": "Update downloaded. Closing the app to install it..."})
                 if self._window:
                     self._window.destroy()

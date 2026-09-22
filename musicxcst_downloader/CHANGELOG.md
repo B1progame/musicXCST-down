@@ -1,4 +1,10 @@
-# MusicXCST Downloader 4.3.0
+# MusicXCST Downloader 5.0.0
+
+## 5.0.0
+
+- Fixed application updates failing with GitHub/Azure “blob does not exist” 404 errors.
+- Application updates now use a stable release-download URL built from the exact tag and installer asset.
+- Added a GitHub API asset fallback with clearer retry guidance when a release is still publishing.
 
 ## 4.3.0
 

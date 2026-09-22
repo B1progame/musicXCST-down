@@ -324,6 +324,38 @@ def test_app_update_retries_private_github_api_with_logged_in_cli(monkeypatch):
     assert requests[1].get_header("Authorization") == "Bearer github-token"
 
 
+def test_app_update_builds_stable_release_asset_url(monkeypatch):
+    response_data = {
+        "tag_name": "v4.3.0",
+        "html_url": "https://github.com/B1progame/musicXCST-down/releases/tag/v4.3.0",
+        "assets": [{
+            "name": "MusicXCST-Downloader-Setup-4.3.0.exe",
+            "browser_download_url": "https://objects.example.invalid/stale-blob",
+            "url": "https://api.github.com/repos/B1progame/musicXCST-down/releases/assets/1",
+            "digest": "sha256:abc",
+        }],
+    }
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def read(self):
+            return json.dumps(response_data).encode("utf-8")
+
+    monkeypatch.setattr(app_updater.urllib.request, "urlopen", lambda *args, **kwargs: Response())
+    result = app_updater.check_for_update("4.2.3")
+
+    assert result["installer_url"] == (
+        "https://github.com/B1progame/musicXCST-down/releases/download/"
+        "v4.3.0/MusicXCST-Downloader-Setup-4.3.0.exe"
+    )
+    assert result["installer_api_url"].endswith("/releases/assets/1")
+
+
 def test_update_event_reports_current_and_latest_versions():
     event = app_updater.update_event("3.1.0", {"version": "3.2.1", "update_available": True})
     assert event["current_version"] == "3.1.0"
