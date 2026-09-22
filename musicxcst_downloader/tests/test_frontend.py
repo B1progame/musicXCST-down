@@ -45,3 +45,15 @@ def test_update_visuals_are_conditional_and_restart_is_wired():
     assert "Restarting the app" in js
     assert '"restart": True' in app
     assert "restart_application" in app
+
+
+def test_aurora_has_coordinated_page_and_dropdown_motion():
+    css = (FRONTEND / "styles.css").read_text(encoding="utf-8")
+    js = (FRONTEND / "app.js").read_text(encoding="utf-8")
+
+    assert "page-exiting" in js
+    assert "page-entering" in js
+    assert "@keyframes auroraPanelEnter" in css
+    assert 'html[data-theme="aurora"] select:hover' in css
+    assert "appearance: none" in css
+    assert ".rainbow-settings::before" in css

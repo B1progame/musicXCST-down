@@ -673,13 +673,24 @@ async function switchPage(pageName) {
   const nextPage = views.pages.get(pageName);
   const previousButton = views.navButtons.find((button) => button.dataset.page === state.activePage);
   const nextButton = views.navButtons.find((button) => button.dataset.page === pageName);
+  const motionEnabled = !document.documentElement.classList.contains("motion-disabled")
+    && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (motionEnabled && previousPage?.classList.contains("active")) {
+    previousPage.classList.add("page-exiting");
+    await new Promise((resolve) => setTimeout(resolve, 170));
+  }
 
   previousButton?.classList.remove("active");
-  previousPage?.classList.remove("active");
+  previousPage?.classList.remove("active", "page-exiting");
   previousPage?.setAttribute("hidden", "");
   nextButton?.classList.add("active");
   nextPage?.removeAttribute("hidden");
   nextPage?.classList.add("active");
+  if (motionEnabled) {
+    nextPage?.classList.add("page-entering");
+    requestAnimationFrame(() => nextPage?.classList.remove("page-entering"));
+  }
   state.activePage = pageName;
 
   await syncBrowserLayout();

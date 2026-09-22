@@ -1,4 +1,9 @@
-# MusicXCST Downloader 4.0.1
+# MusicXCST Downloader 4.0.2
+
+## 4.0.2
+- Fixed the Settings rainbow border so it is completely neutral unless an app update is actually available.
+- Added coordinated fade-out/fade-in page navigation with reduced-motion support.
+- Extended Aurora motion with staged panel entrances, smoother hover/focus transitions, and improved select controls.
 
 ## 4.0.1
 - Fixed startup version reporting so the installed app and yt-dlp versions are always visible immediately.
