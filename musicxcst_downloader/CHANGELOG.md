@@ -1,4 +1,9 @@
-# MusicXCST Downloader 3.2.2
+# MusicXCST Downloader 4.0.0
+
+## 4.0.0
+- Reworked the entire desktop interface with a cleaner workspace hierarchy, clearer download steps, stronger navigation, and calmer visual surfaces.
+- Added consistent SVG navigation icons, visible keyboard focus states, improved disabled/loading feedback, and reduced-motion handling.
+- Improved responsive behavior for narrow windows and made settings, history, web tools, and download actions easier to scan.
 
 ## 3.2.2
 
