@@ -18,6 +18,7 @@ const state = {
   settingsEditVersion: 0,
   browserOpen: false,
   updateAvailable: false,
+  currentVersion: "unknown",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -417,6 +418,17 @@ function scheduleSettingsSave() {
   }, 700);
 }
 
+async function flushSettingsSave() {
+  clearTimeout(state.settingsSaveTimer);
+  let attempts = 0;
+  while (state.settingsSaving && attempts < 100) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    attempts += 1;
+  }
+  if (state.settingsDirty) return saveSettingsPatch(collectSettingsPatch());
+  return true;
+}
+
 function browserBounds() {
   const viewport = $("webViewport");
   if (!viewport) return null;
@@ -502,21 +514,32 @@ window.MusicXCST = {
       if (!preserveForm) markSettingsSaved();
     }
     if (event.type === "ytdlp_update") {
-      setYtdlpUpdateState(Boolean(event.running), event.running ? "Updating..." : "Update yt-dlp");
+      const updateAvailable = event.available !== false;
+      setYtdlpUpdateState(Boolean(event.running), event.running ? "Updating..." : (updateAvailable ? "Update yt-dlp" : "yt-dlp up to date"), updateAvailable);
       if (event.percent !== undefined) setYtdlpProgress(event.percent, event.status || "Updating yt-dlp...");
       else if (event.running) setYtdlpProgress(0, event.status || "Updating yt-dlp...");
       else if (event.ok) setYtdlpProgress(100, event.status || "yt-dlp update finished.");
       else setYtdlpProgress(0, event.status || "yt-dlp update failed.");
-      if (event.version) renderYtdlp({ version: event.version });
-      $("ytdlpStatus").textContent = event.status || "yt-dlp update finished.";
+      if (event.current_version || event.latest_version) {
+        renderYtdlp(event);
+      } else if (event.version) {
+        renderYtdlp({ version: event.version });
+        $("ytdlpStatus").textContent = event.status || "yt-dlp update finished.";
+      } else {
+        $("ytdlpStatus").textContent = event.status || "yt-dlp update finished.";
+      }
       setStatus(event.status || "yt-dlp update finished.");
       appendTerminal(event.status || "yt-dlp update finished.");
     }
     if (event.type === "app_update") {
-      setAppUpdateState(Boolean(event.running), event.running ? "Updating..." : "Update App");
+      setAppUpdateState(Boolean(event.running), event.running ? "Updating..." : (event.available === false ? "App up to date" : "Update App"), event.available !== false);
       if (event.available !== undefined) setUpdateReminder(Boolean(event.available), event.version);
-      if (event.version && event.available === false) {
-        $("appUpdateStatus").textContent = `Current version: ${event.version} (up to date)`;
+      if (event.current_version || event.version) {
+        const current = event.current_version || state.currentVersion || "unknown";
+        const latest = event.version || current;
+        $("appUpdateStatus").textContent = event.available
+          ? `Current version: ${current} • Update available: ${latest}`
+          : `Current version: ${current} (up to date)`;
       } else if (event.status) {
         $("appUpdateStatus").textContent = event.status;
       }
@@ -565,7 +588,12 @@ async function init() {
   renderYtdlp(boot.ytdlp);
   renderAppVersion(boot.appVersion);
   $("firstRun").classList.toggle("hidden", Boolean(boot.settings.first_run_confirmed));
-  callApi("check_app_update").catch(() => {});
+  setYtdlpUpdateState(true, "Checking...");
+  setAppUpdateState(true, "Checking...");
+  callApi("check_app_update").catch(() => {
+    setYtdlpUpdateState(false, "Update yt-dlp", true);
+    setAppUpdateState(false, "Update App", true);
+  });
 }
 
 function renderFfmpeg(info) {
@@ -580,12 +608,16 @@ function setFfmpegDownloadState(running, label = "Download App FFmpeg") {
 }
 
 function renderYtdlp(info) {
-  $("ytdlpStatus").textContent = `Installed version: ${info?.version || "unknown"}`;
+  const current = info?.current_version || info?.version || "unknown";
+  const latest = info?.latest_version;
+  $("ytdlpStatus").textContent = latest
+    ? (info.available === false ? `Installed: ${current} (up to date)` : `Installed: ${current} • Latest: ${latest}`)
+    : `Installed version: ${current}`;
 }
 
-function setYtdlpUpdateState(running, label = "Update yt-dlp") {
+function setYtdlpUpdateState(running, label = "Update yt-dlp", enabled = true) {
   const button = $("updateYtdlpBtn");
-  button.disabled = running;
+  button.disabled = running || !enabled;
   button.textContent = label;
 }
 
@@ -600,13 +632,14 @@ function setYtdlpProgress(percent, status = "Ready.") {
 }
 
 function renderAppVersion(version) {
+  state.currentVersion = version || "unknown";
   $("appUpdateStatus").textContent = `Current version: ${version || "unknown"}`;
   $("appVersionBadge").textContent = version || "unknown";
 }
 
-function setAppUpdateState(running, label = "Update App") {
+function setAppUpdateState(running, label = "Update App", enabled = true) {
   const button = $("updateAppBtn");
-  button.disabled = running;
+  button.disabled = running || !enabled;
   button.textContent = label;
 }
 
@@ -826,7 +859,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  ["setFormat", "setQuality", "setFfmpegMode", "setLogging", "setTheme"].forEach((id) => {
+  ["setFormat", "setQuality", "setVideoQuality", "setFfmpegMode", "setLogging", "setTheme"].forEach((id) => {
     $(id).addEventListener("change", () => {
       if (id === "setTheme") applyUiTheme($("setTheme").value, $("setMotion").checked);
       markSettingsDirty();
@@ -908,6 +941,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
   $("updateAppBtn").addEventListener("click", async () => {
+    await flushSettingsSave();
     setAppUpdateState(true, "Checking...");
     const result = await callApi("update_app");
     if (!result.ok) {

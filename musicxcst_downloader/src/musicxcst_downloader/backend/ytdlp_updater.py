@@ -22,6 +22,26 @@ def installed_ytdlp_version() -> str:
     return __version__
 
 
+def _version_tuple(value: str) -> tuple[int, ...]:
+    return tuple(int(part) if part.isdigit() else 0 for part in str(value).lstrip("vV").split("."))
+
+
+def check_ytdlp_update() -> dict:
+    """Compare installed yt-dlp with the latest PyPI release."""
+    current = installed_ytdlp_version()
+    request = urllib.request.Request(
+        "https://pypi.org/pypi/yt-dlp/json",
+        headers={"User-Agent": "MusicXCST-Downloader"},
+    )
+    with urllib.request.urlopen(request, timeout=20) as response:
+        latest = str(json.load(response)["info"]["version"])
+    return {
+        "current_version": current,
+        "latest_version": latest,
+        "update_available": _version_tuple(latest) > _version_tuple(current),
+    }
+
+
 def build_pip_update_command(python_executable: Path, target: Path) -> list[str]:
     return [
         str(python_executable),

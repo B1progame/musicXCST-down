@@ -255,6 +255,36 @@ def test_app_update_retries_private_github_api_with_logged_in_cli(monkeypatch):
     assert requests[1].get_header("Authorization") == "Bearer github-token"
 
 
+def test_update_event_reports_current_and_latest_versions():
+    event = app_updater.update_event("3.1.0", {"version": "3.2.1", "update_available": True})
+    assert event["current_version"] == "3.1.0"
+    assert event["version"] == "3.2.1"
+    assert event["available"] is True
+
+
+def test_ytdlp_update_check_reports_installed_and_latest(monkeypatch):
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def read(self):
+            return b'{"info":{"version":"2026.8.19"}}'
+
+    monkeypatch.setattr(ytdlp_updater, "installed_ytdlp_version", lambda: "2026.3.17")
+    monkeypatch.setattr(ytdlp_updater.urllib.request, "urlopen", lambda *args, **kwargs: Response())
+
+    result = ytdlp_updater.check_ytdlp_update()
+
+    assert result == {
+        "current_version": "2026.3.17",
+        "latest_version": "2026.8.19",
+        "update_available": True,
+    }
+
+
 def test_download_update_launches_installer_with_parent_pid(monkeypatch, tmp_path):
     class Response:
         headers = {"Content-Length": "4"}

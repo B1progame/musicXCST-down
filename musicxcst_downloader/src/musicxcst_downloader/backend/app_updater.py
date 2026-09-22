@@ -27,7 +27,7 @@ def _version_tuple(value: str) -> tuple[int, ...]:
 
 
 def _github_token() -> str:
-    gh = shutil.which("gh")
+    gh = _github_cli()
     if not gh:
         return ""
     try:
@@ -41,6 +41,17 @@ def _github_token() -> str:
     except (OSError, subprocess.SubprocessError):
         return ""
     return result.stdout.strip() if result.returncode == 0 else ""
+
+
+def _github_cli() -> str:
+    located = shutil.which("gh")
+    if located:
+        return located
+    candidates = [
+        str(Path(os.environ.get("ProgramFiles", "")) / "GitHub CLI" / "gh.exe"),
+        str(Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "GitHub CLI" / "gh.exe"),
+    ]
+    return next((candidate for candidate in candidates if candidate and Path(candidate).is_file()), "")
 
 
 def _release_json() -> dict:
@@ -92,6 +103,15 @@ def check_for_update(current_version: str) -> dict:
         "installer_url": str(installer.get("browser_download_url")) if installer else "",
         "installer_digest": str(installer.get("digest") or "") if installer else "",
         "release_url": str(release.get("html_url") or ""),
+    }
+
+
+def update_event(current_version: str, release: dict) -> dict:
+    """Build a UI event that identifies both installed and latest versions."""
+    return {
+        "current_version": current_version,
+        "version": release["version"],
+        "available": bool(release["update_available"]),
     }
 
 

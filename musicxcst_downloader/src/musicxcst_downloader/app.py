@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 
 import webview
 from . import __version__
-from .backend.app_updater import check_for_update, download_and_launch_update
+from .backend.app_updater import check_for_update, download_and_launch_update, update_event
 from .backend.ytdlp_runtime import activate_ytdlp_override
 
 activate_ytdlp_override()
@@ -25,7 +25,7 @@ from .backend.logging_setup import configure_logging
 from .backend.managed_ffmpeg import download_managed_ffmpeg
 from .backend.paths import browser_storage_dir, frontend_index
 from .backend.settings import Settings, SettingsStore
-from .backend.ytdlp_updater import installed_ytdlp_version, update_ytdlp
+from .backend.ytdlp_updater import check_ytdlp_update, installed_ytdlp_version, update_ytdlp
 
 LOGGER = logging.getLogger(__name__)
 
@@ -187,6 +187,9 @@ class Api:
                     "running": False,
                     "ok": True,
                     "version": result["version"],
+                    "current_version": result["version"],
+                    "latest_version": result["version"],
+                    "available": False,
                     "status": f"yt-dlp updated to {result['version']}. Restart the app to use it.",
                 })
             except Exception as exc:
@@ -204,7 +207,7 @@ class Api:
             try:
                 release = check_for_update(__version__)
                 if not release["update_available"]:
-                    self._emit({"type": "app_update", "running": False, "ok": True, "available": False, "version": release["version"], "status": f"The app is up to date ({__version__})."})
+                    self._emit({"type": "app_update", "running": False, "ok": True, **update_event(__version__, release), "status": f"The app is up to date ({__version__})."})
                     return
                 if not release["installer_url"]:
                     raise RuntimeError(f"GitHub release {release['version']} has no Windows installer asset.")
@@ -234,8 +237,7 @@ class Api:
                     "type": "app_update",
                     "running": False,
                     "ok": True,
-                    "available": release["update_available"],
-                    "version": release["version"],
+                    **update_event(__version__, release),
                     "status": (
                         f"Update available: {release['version']}"
                         if release["update_available"]
@@ -245,6 +247,25 @@ class Api:
             except Exception as exc:
                 LOGGER.warning("Background application update check failed: %s", exc)
                 self._emit({"type": "app_update", "running": False, "ok": False, "status": str(exc)})
+            try:
+                library = check_ytdlp_update()
+                self._emit({
+                    "type": "ytdlp_update",
+                    "running": False,
+                    "ok": True,
+                    "version": library["current_version"],
+                    "current_version": library["current_version"],
+                    "latest_version": library["latest_version"],
+                    "available": library["update_available"],
+                    "status": (
+                        f"yt-dlp update available: {library['latest_version']}"
+                        if library["update_available"]
+                        else f"yt-dlp is up to date ({library['current_version']})."
+                    ),
+                })
+            except Exception as exc:
+                LOGGER.warning("Background yt-dlp update check failed: %s", exc)
+                self._emit({"type": "ytdlp_update", "running": False, "ok": False, "status": str(exc)})
 
         threading.Thread(target=run, daemon=True).start()
         return {"ok": True, "status": "Checking GitHub for updates..."}

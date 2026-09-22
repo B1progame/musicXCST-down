@@ -14,3 +14,8 @@ def test_update_reminder_and_animated_settings_control_are_present():
     assert 'class="nav-item settings-nav rainbow-settings"' in html
     assert ".rainbow-settings" in css
     assert "check_app_update" in js
+    assert '"setVideoQuality"' in js
+    assert "current_version" in js
+    assert "latest_version" in js
+    assert "Update available" in js
+    assert "flushSettingsSave" in js

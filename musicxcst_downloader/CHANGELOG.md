@@ -1,4 +1,11 @@
-# MusicXCST Downloader 3.2.1
+# MusicXCST Downloader 3.2.2
+
+## 3.2.2
+
+- Fixed settings persistence for default video quality and flushed pending settings before application updates close the app.
+- Improved GitHub CLI discovery for packaged startup checks.
+- Startup now compares installed and latest app and yt-dlp versions.
+- Update buttons are disabled and labeled up to date when no update is available.
 
 ## 3.2.1
 
