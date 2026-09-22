@@ -179,14 +179,56 @@ function describeError(error) {
 }
 
 function describeAnalysisError(error) {
-  const message = describeError(error);
-  if (/video is (not )?available|video is unavailable|private video|sign in to confirm/i.test(message)) {
-    return "YouTube says this video is unavailable. Check the link, region, or privacy settings, then try again.";
-  }
-  if (/age-restricted|confirm your age/i.test(message)) {
-    return "YouTube requires age verification for this video. Try another accessible link.";
-  }
-  return message.replace(/^ERROR:\s*/i, "");
+  const detail = describeError(error).replace(/^ERROR:\s*/i, "").replace(/\s+/g, " ").trim();
+  const cases = [
+    {
+      match: /video is (not )?available|video is unavailable|private video/i,
+      summary: "This video cannot be accessed.",
+      guidance: "Check that the URL is correct and that the video is public, still online, and available in your region.",
+    },
+    {
+      match: /age-restricted|confirm your age|inappropriate for certain audiences/i,
+      summary: "This video is age-restricted.",
+      guidance: "YouTube requires an authenticated, age-verified account. Try another accessible video.",
+    },
+    {
+      match: /not available in your country|geo.?restrict|country restriction|地域制限/i,
+      summary: "This video is region-restricted.",
+      guidance: "The uploader or YouTube blocks it in this region. Try a different link that is available here.",
+    },
+    {
+      match: /sign in to confirm|login required|authentication required|members.?only|private/i,
+      summary: "This video requires sign-in or membership.",
+      guidance: "MusicXCST cannot access this protected content without an authenticated session. Try a public link.",
+    },
+    {
+      match: /captcha|bot|automated|too many requests|rate.?limit/i,
+      summary: "YouTube temporarily blocked the request.",
+      guidance: "Wait a few minutes, avoid repeated retries, and try again with a normal public link.",
+    },
+    {
+      match: /timed? ?out|connection reset|connection refused|name resolution|network is unreachable|temporary failure/i,
+      summary: "The network request failed.",
+      guidance: "Check your internet connection, firewall, VPN, and proxy settings, then retry.",
+    },
+    {
+      match: /unsupported URL|no suitable extractor|not a valid URL/i,
+      summary: "This link format is not supported.",
+      guidance: "Paste the full YouTube, YouTube Music, or supported provider URL instead of a search page or shortened text.",
+    },
+    {
+      match: /ffmpeg|ffprobe/i,
+      summary: "Media processing support is missing.",
+      guidance: "Install or update FFmpeg from Settings before converting or merging this media.",
+    },
+  ];
+  const matched = cases.find((item) => item.match.test(detail));
+  if (matched) return { ...matched, detail };
+  return {
+    summary: "The link could not be analyzed.",
+    guidance: "Check the URL and try again. If it still fails, review the technical details in the operation log.",
+    detail,
+  };
 }
 
 function setStatus(text, detail = "--") {
@@ -531,16 +573,18 @@ window.MusicXCST = {
       setStatus(event.status);
     }
     if (event.type === "analysis") {
-      const analysisError = event.ok ? "" : describeAnalysisError(event.error);
-      const scanDetail = event.ok ? `${event.data.formats_count || 0} streams scanned` : analysisError;
+      const analysisError = event.ok ? null : describeAnalysisError(event.error);
+      const scanDetail = event.ok ? `${event.data.formats_count || 0} streams scanned` : analysisError.summary;
       setAnalysisState(false, { ok: event.ok, detail: scanDetail });
       if (event.ok) {
         renderAnalysis(event.data);
         appendTerminal(`Analysis complete: ${event.data.formats_count || 0} streams scanned.`);
         setStatus("Analysis complete.");
       } else {
-        appendTerminal(`Analysis failed: ${analysisError}`);
-        setStatus(`Analysis failed: ${analysisError}`);
+        appendTerminal(`Analysis failed: ${analysisError.summary}`);
+        appendTerminal(`What to do: ${analysisError.guidance}`);
+        appendTerminal(`Technical details: ${analysisError.detail}`);
+        setStatus(analysisError.summary, "See operation log for details");
       }
     }
     if (event.type === "terminal") appendTerminal(event.line || event.status || "Working...");
@@ -815,14 +859,20 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const result = await callApi("analyze", url);
       if (!result.ok) {
-        const message = describeAnalysisError(result.error);
-        setAnalysisState(false, { ok: false, detail: message });
-        setStatus(message);
+        const analysisError = describeAnalysisError(result.error);
+        setAnalysisState(false, { ok: false, detail: analysisError.summary });
+        appendTerminal(`Analysis failed: ${analysisError.summary}`);
+        appendTerminal(`What to do: ${analysisError.guidance}`);
+        appendTerminal(`Technical details: ${analysisError.detail}`);
+        setStatus(analysisError.summary, "See operation log for details");
       }
     } catch (error) {
-      const message = describeAnalysisError(error);
-      setAnalysisState(false, { ok: false, detail: message });
-      setStatus(`Analysis failed: ${message}`);
+      const analysisError = describeAnalysisError(error);
+      setAnalysisState(false, { ok: false, detail: analysisError.summary });
+      appendTerminal(`Analysis failed: ${analysisError.summary}`);
+      appendTerminal(`What to do: ${analysisError.guidance}`);
+      appendTerminal(`Technical details: ${analysisError.detail}`);
+      setStatus(analysisError.summary, "See operation log for details");
     }
   });
 

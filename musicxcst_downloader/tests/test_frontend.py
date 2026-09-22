@@ -121,6 +121,9 @@ def test_unavailable_analysis_errors_are_user_friendly():
     js = (FRONTEND / "app.js").read_text(encoding="utf-8")
 
     assert "function describeAnalysisError" in js
-    assert "YouTube says this video is unavailable" in js
-    assert "Check the link, region, or privacy settings" in js
-    assert "Analysis failed: ${analysisError}" in js
+    assert 'summary: "This video cannot be accessed."' in js
+    assert "public, still online, and available in your region" in js
+    assert 'summary: "This video is age-restricted."' in js
+    assert 'summary: "This video is region-restricted."' in js
+    assert 'summary: "The network request failed."' in js
+    assert "Technical details: ${analysisError.detail}" in js

@@ -1,4 +1,9 @@
-# MusicXCST Downloader 4.0.9
+# MusicXCST Downloader 4.1.0
+
+## 4.1.0
+
+- Expanded analysis error handling for unavailable, private, region-restricted, age-restricted, rate-limited, network, unsupported-link, and FFmpeg failures.
+- Added actionable guidance plus preserved technical details in the operation log.
 
 ## 4.0.9
 
