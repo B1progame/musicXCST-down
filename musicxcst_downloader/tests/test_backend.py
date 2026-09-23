@@ -3,11 +3,13 @@ import os
 import zipfile
 import json
 import io
+import pytest
 from urllib.error import HTTPError
 
 from musicxcst_downloader.backend.downloader import (
     DownloadWorker,
     analyze_url,
+    _browser_cookie_profiles,
     cookie_browser_candidates,
     build_format_selector,
     format_supports_dolby_atmos,
@@ -93,6 +95,42 @@ def test_auto_browser_cookie_source_returns_all_detected_browsers(monkeypatch):
         lambda browser: browser in {"brave", "chrome", "edge"},
     )
     assert cookie_browser_candidates("auto") == ("brave", "chrome", "edge")
+
+
+def test_brave_cookie_search_only_uses_real_named_profiles(tmp_path: Path, monkeypatch):
+    user_data = tmp_path / "BraveSoftware" / "Brave-Browser" / "User Data"
+    for profile in ("Default", "Profile 1", "Guest Profile"):
+        (user_data / profile / "Network").mkdir(parents=True)
+        (user_data / profile / "Network" / "Cookies").write_bytes(b"cookies")
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+
+    assert _browser_cookie_profiles("brave") == ("Default", "Profile 1")
+
+
+def test_analysis_explains_that_brave_must_be_closed_for_cookie_retry(monkeypatch):
+    attempts = []
+
+    class FakeYoutubeDL:
+        def __init__(self, options):
+            attempts.append(options)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def extract_info(self, url, download=False):
+            raise RuntimeError("video unavailable")
+
+    monkeypatch.setattr("musicxcst_downloader.backend.downloader.YoutubeDL", FakeYoutubeDL)
+    monkeypatch.setattr("musicxcst_downloader.backend.downloader._cookie_attempts", lambda source: (("brave", "Default"),))
+    monkeypatch.setattr("musicxcst_downloader.backend.downloader._browser_process_running", lambda browser: True)
+
+    with pytest.raises(RuntimeError, match="Brave is still running"):
+        analyze_url("https://example.com/video", use_browser_cookies=True, browser_cookie_source="brave")
+
+    assert len(attempts) == 1
 
 
 def test_analysis_uses_imported_cookie_file_after_browser_retries(tmp_path: Path, monkeypatch):

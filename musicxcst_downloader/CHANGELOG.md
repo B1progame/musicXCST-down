@@ -1,4 +1,10 @@
-# MusicXCST Downloader 5.0.1
+# MusicXCST Downloader 5.0.2
+
+## 5.0.2
+
+- Strictly detects real Brave/Chrome/Edge profiles with an actual cookie database.
+- Ignores Guest Profile and other temporary browser folders.
+- Detects running browsers before cookie access and explains exactly which browser must be closed.
 
 ## 5.0.1
 

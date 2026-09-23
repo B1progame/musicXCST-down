@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import subprocess
 import threading
 import time
 from pathlib import Path
@@ -23,27 +24,22 @@ DOWNLOAD_MODES = {"audio", "video", "video-audio"}
 VIDEO_QUALITIES = {"best", "2160", "1440", "1080", "720", "480", "360"}
 ATMOS_AUDIO_CODECS = {"eac3", "ec3", "ec-3"}
 COOKIE_BROWSERS = ("brave", "chrome", "edge", "firefox", "chromium", "opera", "vivaldi")
+CHROMIUM_PROFILE_PATTERN = re.compile(r"^(Default|Profile \d+)$", re.IGNORECASE)
+BROWSER_PROCESS_NAMES = {
+    "brave": "brave.exe",
+    "chrome": "chrome.exe",
+    "edge": "msedge.exe",
+    "firefox": "firefox.exe",
+    "chromium": "chromium.exe",
+    "opera": "opera.exe",
+    "vivaldi": "vivaldi.exe",
+}
 
 
-def _browser_cookie_data_exists(browser: str) -> bool:
+def _browser_roots(browser: str) -> tuple[Path, ...]:
     local_app_data = Path(os.environ.get("LOCALAPPDATA", ""))
     roaming_app_data = Path(os.environ.get("APPDATA", ""))
-    locations = {
-        "brave": (local_app_data / "BraveSoftware" / "Brave-Browser" / "User Data",),
-        "chrome": (local_app_data / "Google" / "Chrome" / "User Data",),
-        "edge": (local_app_data / "Microsoft" / "Edge" / "User Data",),
-        "firefox": (roaming_app_data / "Mozilla" / "Firefox" / "Profiles",),
-        "chromium": (local_app_data / "Chromium" / "User Data",),
-        "opera": (roaming_app_data / "Opera Software" / "Opera Stable",),
-        "vivaldi": (local_app_data / "Vivaldi" / "User Data",),
-    }
-    return any(path and path.exists() for path in locations.get(browser, ()))
-
-
-def _browser_cookie_profiles(browser: str) -> tuple[str | None, ...]:
-    local_app_data = Path(os.environ.get("LOCALAPPDATA", ""))
-    roaming_app_data = Path(os.environ.get("APPDATA", ""))
-    roots = {
+    return {
         "brave": (local_app_data / "BraveSoftware" / "Brave-Browser" / "User Data",),
         "chrome": (local_app_data / "Google" / "Chrome" / "User Data",),
         "edge": (local_app_data / "Microsoft" / "Edge" / "User Data",),
@@ -52,19 +48,72 @@ def _browser_cookie_profiles(browser: str) -> tuple[str | None, ...]:
         "opera": (roaming_app_data / "Opera Software" / "Opera Stable",),
         "vivaldi": (local_app_data / "Vivaldi" / "User Data",),
     }.get(browser, ())
+
+
+def _cookie_database_exists(profile: Path, browser: str) -> bool:
+    if browser == "firefox":
+        return (profile / "cookies.sqlite").is_file()
+    return (profile / "Cookies").is_file() or (profile / "Network" / "Cookies").is_file()
+
+
+def _browser_cookie_data_exists(browser: str) -> bool:
+    for root in _browser_roots(browser):
+        if not root.is_dir():
+            continue
+        if browser == "firefox":
+            if any(_cookie_database_exists(path, browser) for path in root.iterdir() if path.is_dir()):
+                return True
+            continue
+        if _cookie_database_exists(root, browser):
+            return True
+        if any(
+            path.is_dir()
+            and CHROMIUM_PROFILE_PATTERN.fullmatch(path.name)
+            and _cookie_database_exists(path, browser)
+            for path in root.iterdir()
+        ):
+            return True
+    return False
+
+
+def _browser_cookie_profiles(browser: str) -> tuple[str | None, ...]:
+    roots = _browser_roots(browser)
     profiles: list[str] = []
     for root in roots:
         if not root.exists():
             continue
         if browser == "firefox":
-            profiles.extend(path.name for path in root.iterdir() if path.is_dir() and (path / "cookies.sqlite").exists())
+            profiles.extend(path.name for path in root.iterdir() if path.is_dir() and _cookie_database_exists(path, browser))
         else:
             profiles.extend(
                 path.name
                 for path in root.iterdir()
-                if path.is_dir() and ((path / "Cookies").exists() or (path / "Network" / "Cookies").exists())
+                if path.is_dir()
+                and CHROMIUM_PROFILE_PATTERN.fullmatch(path.name)
+                and _cookie_database_exists(path, browser)
             )
     return tuple(dict.fromkeys(profiles)) or (None,) if _browser_cookie_data_exists(browser) else ()
+
+
+def _browser_process_running(browser: str) -> bool:
+    executable = BROWSER_PROCESS_NAMES.get(browser)
+    if not executable or os.name != "nt":
+        return False
+    try:
+        result = subprocess.run(
+            ["tasklist", "/FI", f"IMAGENAME eq {executable}", "/FO", "CSV", "/NH"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return executable.lower() in result.stdout.lower()
+
+
+def _browser_running_message(browser: str) -> str:
+    return f"{browser.title()} is still running. Close {browser.title()} completely and retry analysis so its cookie database can be copied safely."
 
 
 def cookie_browser_candidates(source: str = "auto") -> tuple[str, ...]:
@@ -213,6 +262,11 @@ def analyze_url(url: str, max_duration_warning_minutes: int = 60, use_browser_co
         cookie_attempts = _cookie_attempts(browser_cookie_source) if use_browser_cookies else ()
         for browser, profile in cookie_attempts:
             label = f"{browser}/{profile}" if profile else browser
+            if _browser_process_running(browser):
+                message = _browser_running_message(browser)
+                failures.append(f"{label}: {message}")
+                LOGGER.info(message)
+                continue
             LOGGER.info("Analysis failed; retrying with %s browser cookies", label)
             try:
                 with YoutubeDL(_with_browser_cookies(options, browser, profile)) as ydl:
@@ -449,6 +503,11 @@ class DownloadWorker:
             failures = []
             for browser, profile in _cookie_attempts(request.get("browser_cookie_source", "auto")):
                 label = f"{browser}/{profile}" if profile else browser
+                if _browser_process_running(browser):
+                    message = _browser_running_message(browser)
+                    failures.append(f"{label}: {message}")
+                    self.progress({"type": "terminal", "line": message})
+                    continue
                 self.progress({"type": "terminal", "line": f"Retrying with {label} browser cookies..."})
                 try:
                     with YoutubeDL(_with_browser_cookies(options, browser, profile)) as ydl:
