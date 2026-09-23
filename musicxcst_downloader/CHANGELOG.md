@@ -1,4 +1,9 @@
-# MusicXCST Downloader 5.0.2
+# MusicXCST Downloader 5.0.3
+
+## 5.0.3
+
+- Fixed analysis crashing when Windows process detection returns empty output.
+- Browser-cookie failures now reach the clear Brave-running guidance instead of showing a `NoneType` error.
 
 ## 5.0.2
 

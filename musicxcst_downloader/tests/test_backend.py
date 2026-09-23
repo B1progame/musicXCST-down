@@ -9,6 +9,7 @@ from urllib.error import HTTPError
 from musicxcst_downloader.backend.downloader import (
     DownloadWorker,
     analyze_url,
+    _browser_process_running,
     _browser_cookie_profiles,
     cookie_browser_candidates,
     build_format_selector,
@@ -131,6 +132,15 @@ def test_analysis_explains_that_brave_must_be_closed_for_cookie_retry(monkeypatc
         analyze_url("https://example.com/video", use_browser_cookies=True, browser_cookie_source="brave")
 
     assert len(attempts) == 1
+
+
+def test_browser_process_check_handles_missing_tasklist_output(monkeypatch):
+    monkeypatch.setattr(
+        "musicxcst_downloader.backend.downloader.subprocess.run",
+        lambda *args, **kwargs: type("Result", (), {"stdout": None})(),
+    )
+
+    assert _browser_process_running("brave") is False
 
 
 def test_analysis_uses_imported_cookie_file_after_browser_retries(tmp_path: Path, monkeypatch):

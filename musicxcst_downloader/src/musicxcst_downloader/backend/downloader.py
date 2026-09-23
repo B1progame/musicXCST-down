@@ -109,7 +109,7 @@ def _browser_process_running(browser: str) -> bool:
         )
     except (OSError, subprocess.SubprocessError):
         return False
-    return executable.lower() in result.stdout.lower()
+    return executable.lower() in str(result.stdout or "").lower()
 
 
 def _browser_running_message(browser: str) -> str:
