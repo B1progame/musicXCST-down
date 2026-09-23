@@ -259,36 +259,41 @@ def analyze_url(url: str, max_duration_warning_minutes: int = 60, use_browser_co
             raise
         last_error = first_error
         failures = []
-        cookie_attempts = _cookie_attempts(browser_cookie_source) if use_browser_cookies else ()
-        for browser, profile in cookie_attempts:
-            label = f"{browser}/{profile}" if profile else browser
-            if _browser_process_running(browser):
-                message = _browser_running_message(browser)
-                failures.append(f"{label}: {message}")
-                LOGGER.info(message)
-                continue
-            LOGGER.info("Analysis failed; retrying with %s browser cookies", label)
+        cookie_file = str(cookie_file_path or "").strip()
+        cookie_file_succeeded = False
+        if cookie_file and Path(cookie_file).is_file():
             try:
-                with YoutubeDL(_with_browser_cookies(options, browser, profile)) as ydl:
+                with YoutubeDL(_with_cookie_file(options, cookie_file)) as ydl:
                     info = ydl.extract_info(url, download=False)
-                break
-            except Exception as cookie_error:
-                last_error = cookie_error
-                failures.append(f"{label}: {cookie_error}")
-                LOGGER.debug("Browser cookie analysis retry failed for %s", browser, exc_info=True)
-        else:
-            cookie_file = str(cookie_file_path or "").strip()
-            if cookie_file and Path(cookie_file).is_file():
+            except Exception as cookie_file_error:
+                last_error = cookie_file_error
+                failures.append(f"cookie file: {cookie_file_error}")
+            else:
+                cookie_file_succeeded = True
+
+        if not cookie_file_succeeded:
+            cookie_attempts = _cookie_attempts(browser_cookie_source) if use_browser_cookies else ()
+            for browser, profile in cookie_attempts:
+                label = f"{browser}/{profile}" if profile else browser
+                if _browser_process_running(browser):
+                    message = _browser_running_message(browser)
+                    failures.append(f"{label}: {message}")
+                    LOGGER.info(message)
+                    continue
+                LOGGER.info("Analysis failed; retrying with %s browser cookies", label)
                 try:
-                    with YoutubeDL(_with_cookie_file(options, cookie_file)) as ydl:
+                    with YoutubeDL(_with_browser_cookies(options, browser, profile)) as ydl:
                         info = ydl.extract_info(url, download=False)
-                except Exception as cookie_file_error:
-                    last_error = cookie_file_error
-                    failures.append(f"cookie file: {cookie_file_error}")
-                else:
-                    failures = []
-            if failures or not cookie_file:
-                raise RuntimeError(f"{last_error} Cookie attempts: {'; '.join(failures) or 'none detected'}.") from first_error
+                    break
+                except Exception as cookie_error:
+                    last_error = cookie_error
+                    failures.append(f"{label}: {cookie_error}")
+                    LOGGER.debug("Browser cookie analysis retry failed for %s", browser, exc_info=True)
+            else:
+                if cookie_file and not Path(cookie_file).is_file():
+                    failures.append(f"cookie file: file not found: {cookie_file}")
+                if failures or not cookie_file:
+                    raise RuntimeError(f"{last_error} Cookie attempts: {'; '.join(failures) or 'none detected'}.") from first_error
     formats = info.get("formats") or []
     audio_formats = [f for f in formats if f.get("acodec") not in (None, "none")]
     video_formats = [f for f in formats if f.get("vcodec") not in (None, "none")]
@@ -501,35 +506,40 @@ class DownloadWorker:
                 raise
             last_error = first_error
             failures = []
-            for browser, profile in _cookie_attempts(request.get("browser_cookie_source", "auto")):
-                label = f"{browser}/{profile}" if profile else browser
-                if _browser_process_running(browser):
-                    message = _browser_running_message(browser)
-                    failures.append(f"{label}: {message}")
-                    self.progress({"type": "terminal", "line": message})
-                    continue
-                self.progress({"type": "terminal", "line": f"Retrying with {label} browser cookies..."})
+            cookie_file = str(request.get("cookie_file_path") or "").strip()
+            cookie_file_succeeded = False
+            if cookie_file and Path(cookie_file).is_file():
                 try:
-                    with YoutubeDL(_with_browser_cookies(options, browser, profile)) as ydl:
+                    with YoutubeDL(_with_cookie_file(options, cookie_file)) as ydl:
                         ydl.download([url])
-                    break
-                except Exception as cookie_error:
-                    last_error = cookie_error
-                    failures.append(f"{label}: {cookie_error}")
-                    LOGGER.debug("Browser cookie download retry failed for %s", browser, exc_info=True)
-            else:
-                cookie_file = str(request.get("cookie_file_path") or "").strip()
-                if cookie_file and Path(cookie_file).is_file():
+                except Exception as cookie_file_error:
+                    last_error = cookie_file_error
+                    failures.append(f"cookie file: {cookie_file_error}")
+                else:
+                    cookie_file_succeeded = True
+
+            if not cookie_file_succeeded:
+                for browser, profile in _cookie_attempts(request.get("browser_cookie_source", "auto")):
+                    label = f"{browser}/{profile}" if profile else browser
+                    if _browser_process_running(browser):
+                        message = _browser_running_message(browser)
+                        failures.append(f"{label}: {message}")
+                        self.progress({"type": "terminal", "line": message})
+                        continue
+                    self.progress({"type": "terminal", "line": f"Retrying with {label} browser cookies..."})
                     try:
-                        with YoutubeDL(_with_cookie_file(options, cookie_file)) as ydl:
+                        with YoutubeDL(_with_browser_cookies(options, browser, profile)) as ydl:
                             ydl.download([url])
-                    except Exception as cookie_file_error:
-                        last_error = cookie_file_error
-                        failures.append(f"cookie file: {cookie_file_error}")
-                    else:
-                        failures = []
-                if failures or not cookie_file:
-                    raise RuntimeError(f"{last_error} Cookie attempts: {'; '.join(failures) or 'none detected'}.") from first_error
+                        break
+                    except Exception as cookie_error:
+                        last_error = cookie_error
+                        failures.append(f"{label}: {cookie_error}")
+                        LOGGER.debug("Browser cookie download retry failed for %s", browser, exc_info=True)
+                else:
+                    if cookie_file and not Path(cookie_file).is_file():
+                        failures.append(f"cookie file: file not found: {cookie_file}")
+                    if failures or not cookie_file:
+                        raise RuntimeError(f"{last_error} Cookie attempts: {'; '.join(failures) or 'none detected'}.") from first_error
         self.progress(
             {
                 "type": "complete",

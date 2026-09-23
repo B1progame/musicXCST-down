@@ -170,6 +170,44 @@ def test_analysis_uses_imported_cookie_file_after_browser_retries(tmp_path: Path
     assert attempts[-1]["cookiefile"] == str(cookie_file)
 
 
+def test_imported_cookie_file_is_tried_before_running_browser_profiles(tmp_path: Path, monkeypatch):
+    cookie_file = tmp_path / "cookies.txt"
+    cookie_file.write_text("# Netscape HTTP Cookie File\n", encoding="utf-8")
+    attempts = []
+    process_checks = []
+
+    class FakeYoutubeDL:
+        def __init__(self, options):
+            attempts.append(options)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def extract_info(self, url, download=False):
+            if "cookiefile" not in attempts[-1]:
+                raise RuntimeError("video unavailable")
+            return {"title": "Imported first", "formats": []}
+
+    monkeypatch.setattr("musicxcst_downloader.backend.downloader.YoutubeDL", FakeYoutubeDL)
+    monkeypatch.setattr(
+        "musicxcst_downloader.backend.downloader._browser_process_running",
+        lambda browser: process_checks.append(browser) or True,
+    )
+    result = analyze_url(
+        "https://example.com/video",
+        use_browser_cookies=True,
+        browser_cookie_source="brave",
+        cookie_file_path=str(cookie_file),
+    )
+
+    assert result["title"] == "Imported first"
+    assert attempts[1]["cookiefile"] == str(cookie_file)
+    assert process_checks == []
+
+
 def test_settings_migration_preserves_existing_preferences(tmp_path: Path):
     path = tmp_path / "settings.json"
     path.write_text(

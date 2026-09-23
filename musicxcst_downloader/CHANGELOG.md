@@ -1,4 +1,10 @@
-# MusicXCST Downloader 5.0.3
+# MusicXCST Downloader 5.0.4
+
+## 5.0.4
+
+- Imported `cookies.txt` files are now tried before browser cookie databases.
+- Browser state can no longer block an explicitly imported cookie file.
+- The same cookie-file priority is used for analysis and downloads.
 
 ## 5.0.3
 
