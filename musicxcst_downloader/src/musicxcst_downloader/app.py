@@ -85,6 +85,7 @@ class Api:
         self._last_analysis_url = ""
         self._ffmpeg_download_running = False
         self._ytdlp_update_running = False
+        self._app_update_running = False
         self._emit_lock = threading.Lock()
         self._browser_control = None
         self._browser_creating = False
@@ -178,6 +179,8 @@ class Api:
         return probe(mode or self._settings.ffmpeg_mode, custom_path or self._settings.custom_ffmpeg_path)
 
     def download_managed_ffmpeg(self) -> dict:
+        if self._app_update_running:
+            return {"ok": False, "error": "The app is preparing an update. Try again after it restarts."}
         if self._ffmpeg_download_running:
             return {"ok": False, "error": "FFmpeg download is already running."}
 
@@ -200,6 +203,8 @@ class Api:
         return {"ok": True, "status": "FFmpeg download started"}
 
     def update_ytdlp(self) -> dict:
+        if self._app_update_running:
+            return {"ok": False, "error": "The app is preparing an update. Try again after it restarts."}
         if self._ytdlp_update_running:
             return {"ok": False, "error": "yt-dlp update is already running."}
 
@@ -244,11 +249,20 @@ class Api:
                 self._window.destroy()
 
     def update_app(self) -> dict:
+        if self._app_update_running:
+            return {"ok": False, "error": "An app update is already running."}
+        if self._worker.running:
+            return {"ok": False, "error": "Finish or cancel the active download before updating the app."}
+        if self._ffmpeg_download_running or self._ytdlp_update_running:
+            return {"ok": False, "error": "Wait for the current component update to finish before updating the app."}
+        self._app_update_running = True
+
         def run() -> None:
             self._emit({"type": "app_update", "running": True, "status": "Checking GitHub for updates..."})
             try:
                 release = check_for_update(__version__)
                 if not release["update_available"]:
+                    self._app_update_running = False
                     self._emit({"type": "app_update", "running": False, "ok": True, **update_event(__version__, release), "status": f"The app is up to date ({__version__})."})
                     return
                 if not release["installer_url"]:
@@ -268,7 +282,12 @@ class Api:
                 self._emit({"type": "app_update", "running": False, "ok": True, "available": True, "version": release["version"], "status": "Update downloaded. Closing the app to install it..."})
                 if self._window:
                     self._window.destroy()
+                # The installer waits for this PID before replacing packaged files.
+                # Some WebView2 builds leave the host process alive after destroy(),
+                # so guarantee the update handoff completes after the window closes.
+                threading.Timer(2.0, os._exit, args=(0,)).start()
             except Exception as exc:
+                self._app_update_running = False
                 LOGGER.exception("Application update failed")
                 self._emit({"type": "app_update", "running": False, "ok": False, "status": str(exc)})
 
@@ -347,6 +366,8 @@ class Api:
         return {"ok": True, "status": "Analysis started"}
 
     def download(self, request: dict) -> dict:
+        if self._app_update_running:
+            return {"ok": False, "error": "The app is preparing an update. Try again after it restarts."}
         if not can_download(bool(request.get("legal_confirmed"))):
             return {"ok": False, "error": "Confirm that you have the right to download this content first."}
         if not validate_url(request.get("url", "")):

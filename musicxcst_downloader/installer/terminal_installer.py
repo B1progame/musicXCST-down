@@ -121,12 +121,32 @@ def _process_is_running(pid: int) -> bool:
         return False
     if os.name == "nt":
         import ctypes
+        from ctypes import wintypes
 
-        handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)
+        # Process handles are pointer-sized. Declare the WinAPI signatures so
+        # ctypes does not truncate them to its default 32-bit integer type on
+        # 64-bit Windows. Wait on the process's signaled state, not just whether
+        # its process object can be opened.
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+        kernel32.OpenProcess.restype = wintypes.HANDLE
+        kernel32.WaitForSingleObject.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+        kernel32.WaitForSingleObject.restype = wintypes.DWORD
+        kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+        kernel32.CloseHandle.restype = wintypes.BOOL
+        synchronize = 0x00100000
+        handle = kernel32.OpenProcess(synchronize, False, pid)
         if not handle:
             return False
-        ctypes.windll.kernel32.CloseHandle(handle)
-        return True
+        try:
+            wait_timeout = 0x00000102
+            wait_failed = 0xFFFFFFFF
+            result = kernel32.WaitForSingleObject(handle, 0)
+            if result == wait_failed:
+                return True
+            return result == wait_timeout
+        finally:
+            kernel32.CloseHandle(handle)
     try:
         os.kill(pid, 0)
     except OSError:

@@ -1,3 +1,11 @@
+# MusicXCST Downloader 5.1.1
+
+## 5.1.1
+
+- The app now fully exits after launching its installer so its own process cannot block the update.
+- App updates are blocked while a download or component update is still running.
+- The installer checks the prior process's actual signaled state instead of treating every open process handle as a running app.
+
 # MusicXCST Downloader 5.1.0
 
 ## 5.1.0
