@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 import webview
 from . import __version__
 from .backend.app_updater import check_for_update, download_and_launch_update, update_event
-from .backend.ytdlp_runtime import activate_ytdlp_override
+from .backend.ytdlp_runtime import activate_ytdlp_override, youtube_support_status
 
 activate_ytdlp_override()
 
@@ -126,6 +126,7 @@ class Api:
                 "current_version": ytdlp_version,
                 "latest_version": None,
                 "available": None,
+                "support": youtube_support_status(),
             },
         }
 
@@ -303,8 +304,11 @@ class Api:
                     "current_version": library["current_version"],
                     "latest_version": library["latest_version"],
                     "available": library["update_available"],
+                    "support": library.get("support"),
                     "status": (
-                        f"yt-dlp update available: {library['latest_version']}"
+                        "yt-dlp is missing the YouTube challenge solver; update yt-dlp to repair it."
+                        if not (library.get("support") or {}).get("ejs_installed", True)
+                        else f"yt-dlp update available: {library['latest_version']}"
                         if library["update_available"]
                         else f"yt-dlp is up to date ({library['current_version']})."
                     ),

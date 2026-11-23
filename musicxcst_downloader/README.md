@@ -36,7 +36,7 @@ The app does not bypass DRM, paywalls, logins, private content, age restrictions
 - The app checks GitHub in the background at startup and shows an update warning in Settings when a newer release is available; it never installs automatically.
 - Settings has an animated rainbow accent and the existing motion toggle disables it when reduced motion is preferred.
 - Application updates use a visual installer, wait for the previous app to exit, retry locked files, and relaunch the updated app automatically.
-- The yt-dlp updater uses pip directly into an app-managed override and falls back to a verified package when pip is unavailable.
+- The yt-dlp updater installs the YouTube JavaScript challenge solver with yt-dlp and falls back to verified package wheels when pip is unavailable.
 - Combined video downloads expose an explicit **Best video + best audio** choice.
 - Local settings, history, and logs under `%APPDATA%\MusicXCST Downloader`.
 - FFmpeg detection from PATH or a custom path.
@@ -132,6 +132,7 @@ dist\installer\MusicXCST-Downloader-Setup-<version>.exe
 - **Download fails on protected content:** The app does not bypass platform protections or account-only content.
 - **Output exists:** Rename the output file before downloading.
 - **yt-dlp update fails:** Open Settings and retry **Update yt-dlp**; the app shows pip output and uses a verified fallback when pip cannot run.
+- **YouTube extraction says JavaScript runtime is missing:** Install Deno 2.3+ or Node.js 22+, make sure it is available on PATH, and restart the app. Use **Update yt-dlp** to repair older installations missing the YouTube challenge solver.
 - **Conversion fails:** Verify both `ffmpeg.exe` and `ffprobe.exe` work from PATH or the selected folder.
 
 ## Disclaimer

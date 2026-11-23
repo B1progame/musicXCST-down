@@ -182,6 +182,11 @@ function describeAnalysisError(error) {
   const detail = describeError(error).replace(/^ERROR:\s*/i, "").replace(/\s+/g, " ").trim();
   const cases = [
     {
+      match: /no supported javascript runtime|javascript runtime.*(not found|unavailable|unsupported)|js challenge|yt.?dlp.?ejs|ejs.*(missing|required)|challenge solver/i,
+      summary: "YouTube extraction support is missing.",
+      guidance: "Install the latest MusicXCST update so yt-dlp includes its YouTube challenge solver. YouTube also needs Deno 2.3+ or Node.js 22+ installed and available on PATH; restart the app after installing it.",
+    },
+    {
       match: /video is (not )?available|video is unavailable|private video/i,
       summary: "This video cannot be accessed.",
       guidance: "Check that the URL is correct and that the video is public, still online, and available in your region.",
@@ -759,6 +764,7 @@ function renderYtdlp(info) {
   $("ytdlpStatus").textContent = latest
     ? (info.available === false ? `Installed: ${current} (up to date)` : `Installed: ${current} • Latest: ${latest}`)
     : `Installed version: ${current}`;
+  if (info.support?.status) $("ytdlpStatus").textContent += `\n${info.support.status}`;
 }
 
 function setYtdlpUpdateState(running, label = "Update yt-dlp", enabled = true) {

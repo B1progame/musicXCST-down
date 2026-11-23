@@ -1,3 +1,14 @@
+# MusicXCST Downloader 5.1.0
+
+## 5.1.0
+
+- Fixed YouTube extraction setup by installing and packaging yt-dlp's required EJS challenge solver.
+- yt-dlp updates now upgrade the default dependency group and the verified fallback installs the matching EJS package.
+- YouTube analysis and downloads now select an available JavaScript runtime such as Deno or Node.js.
+- Browser cookies are retried only for sign-in or account restrictions, rather than unrelated extraction, network, or unavailable-video errors.
+- Download failures reported through yt-dlp's return code are now shown as failures instead of false successful downloads.
+- Added clearer troubleshooting for missing YouTube JavaScript support.
+
 # MusicXCST Downloader 5.0.4
 
 ## 5.0.4

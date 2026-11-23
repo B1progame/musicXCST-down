@@ -23,7 +23,9 @@ from musicxcst_downloader.backend.managed_ffmpeg import extract_managed_ffmpeg
 from musicxcst_downloader.backend.external import is_safe_external_url, open_external_url
 from musicxcst_downloader.backend.history import HistoryItem, HistoryStore
 from musicxcst_downloader.backend.legal import can_download
+from musicxcst_downloader.backend import logging_setup
 from musicxcst_downloader.backend.settings import SettingsStore
+from musicxcst_downloader.backend import ytdlp_runtime
 from musicxcst_downloader.backend.ytdlp_updater import installed_ytdlp_version
 from musicxcst_downloader.backend import ytdlp_updater
 from musicxcst_downloader.backend.browser import normalize_browser_url
@@ -60,6 +62,37 @@ def test_settings_save_load(tmp_path: Path):
     assert loaded.browser_cookie_source == "auto"
 
 
+def test_logging_falls_back_to_console_when_appdata_is_not_writable(monkeypatch):
+    monkeypatch.setattr(
+        logging_setup,
+        "logs_dir",
+        lambda: (_ for _ in ()).throw(PermissionError("read-only app data")),
+    )
+
+    logging_setup.configure_logging()
+
+
+def test_ytdlp_runtime_skips_unsupported_deno_and_uses_supported_node(monkeypatch):
+    monkeypatch.setattr(
+        ytdlp_runtime.shutil,
+        "which",
+        lambda name: f"{name}.exe" if name in {"deno", "node"} else None,
+    )
+
+    class Result:
+        returncode = 0
+        stderr = ""
+
+    def run(command, **_kwargs):
+        result = Result()
+        result.stdout = "deno 2.2.0" if "deno" in command[0] else "v22.0.0"
+        return result
+
+    monkeypatch.setattr(ytdlp_runtime.subprocess, "run", run)
+
+    assert ytdlp_runtime.available_js_runtime() == ("node", "node.exe")
+
+
 def test_analysis_retries_with_browser_cookies_after_normal_failure(monkeypatch):
     attempts = []
 
@@ -75,7 +108,7 @@ def test_analysis_retries_with_browser_cookies_after_normal_failure(monkeypatch)
 
         def extract_info(self, url, download=False):
             if "cookiesfrombrowser" not in attempts[-1]:
-                raise RuntimeError("video unavailable")
+                raise RuntimeError("Sign in to confirm you are not a bot")
             return {"title": "Cookie video", "formats": []}
 
     monkeypatch.setattr("musicxcst_downloader.backend.downloader.YoutubeDL", FakeYoutubeDL)
@@ -84,6 +117,30 @@ def test_analysis_retries_with_browser_cookies_after_normal_failure(monkeypatch)
     assert result["title"] == "Cookie video"
     assert len(attempts) == 2
     assert attempts[1]["cookiesfrombrowser"][0] == "edge"
+
+
+def test_analysis_does_not_retry_cookies_for_unrelated_unavailable_video(monkeypatch):
+    attempts = []
+
+    class FakeYoutubeDL:
+        def __init__(self, options):
+            attempts.append(options)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def extract_info(self, url, download=False):
+            raise RuntimeError("This video is not available")
+
+    monkeypatch.setattr("musicxcst_downloader.backend.downloader.YoutubeDL", FakeYoutubeDL)
+
+    with pytest.raises(RuntimeError, match="This video is not available"):
+        analyze_url("https://example.com/video", use_browser_cookies=True, browser_cookie_source="brave")
+
+    assert len(attempts) == 1
 
 
 def test_explicit_browser_cookie_source_is_respected():
@@ -122,7 +179,7 @@ def test_analysis_explains_that_brave_must_be_closed_for_cookie_retry(monkeypatc
             return False
 
         def extract_info(self, url, download=False):
-            raise RuntimeError("video unavailable")
+            raise RuntimeError("Sign in to confirm your age")
 
     monkeypatch.setattr("musicxcst_downloader.backend.downloader.YoutubeDL", FakeYoutubeDL)
     monkeypatch.setattr("musicxcst_downloader.backend.downloader._cookie_attempts", lambda source: (("brave", "Default"),))
@@ -160,7 +217,7 @@ def test_analysis_uses_imported_cookie_file_after_browser_retries(tmp_path: Path
 
         def extract_info(self, url, download=False):
             if "cookiefile" not in attempts[-1]:
-                raise RuntimeError("browser cookies failed")
+                raise RuntimeError("Sign in to confirm your age")
             return {"title": "Imported cookie video", "formats": []}
 
     monkeypatch.setattr("musicxcst_downloader.backend.downloader.YoutubeDL", FakeYoutubeDL)
@@ -188,7 +245,7 @@ def test_imported_cookie_file_is_tried_before_running_browser_profiles(tmp_path:
 
         def extract_info(self, url, download=False):
             if "cookiefile" not in attempts[-1]:
-                raise RuntimeError("video unavailable")
+                raise RuntimeError("Sign in to confirm you are not a bot")
             return {"title": "Imported first", "formats": []}
 
     monkeypatch.setattr("musicxcst_downloader.backend.downloader.YoutubeDL", FakeYoutubeDL)
@@ -332,6 +389,42 @@ def test_video_download_builds_merge_options(tmp_path: Path, monkeypatch):
     assert events[-1]["type"] == "complete"
 
 
+def test_download_nonzero_ytdlp_return_code_is_reported_as_failure(tmp_path: Path, monkeypatch):
+    class FakeYoutubeDL:
+        def __init__(self, options):
+            self.options = options
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def download(self, _urls):
+            self.options["logger"].error("YouTube JavaScript challenge solver is missing")
+            return 1
+
+    monkeypatch.setattr("musicxcst_downloader.backend.downloader.YoutubeDL", FakeYoutubeDL)
+    monkeypatch.setattr(
+        "musicxcst_downloader.backend.downloader.probe",
+        lambda *_: {"ready": True, "ffmpeg_path": str(tmp_path / "ffmpeg.exe")},
+    )
+    worker = DownloadWorker(lambda _: None)
+
+    with pytest.raises(RuntimeError, match="JavaScript challenge solver is missing"):
+        worker._download(
+            {
+                "url": "https://example.com/video",
+                "mode": "video-audio",
+                "format": "mp4",
+                "output_folder": str(tmp_path),
+                "filename": "clip.mp4",
+            },
+            "custom",
+            str(tmp_path / "ffmpeg.exe"),
+        )
+
+
 def test_dolby_atmos_format_detection():
     assert format_supports_dolby_atmos({"format_note": "Dolby Atmos", "acodec": "ec-3"})
     assert format_supports_dolby_atmos({"acodec": "eac3"})
@@ -358,7 +451,16 @@ def test_pip_update_command_targets_staged_override(tmp_path: Path):
     assert command[:3] == ["python.exe", "-m", "pip"]
     assert "--target" in command
     assert str(tmp_path) in command
-    assert "yt-dlp" in command
+    assert "yt-dlp[default]" in command
+
+
+def test_verified_wheel_fallback_reads_the_matching_ejs_version():
+    metadata = {"info": {"requires_dist": ["yt-dlp-ejs (==0.3.2) ; extra == 'default'"]}}
+    assert ytdlp_updater._required_ejs_version(metadata) == "0.3.2"
+
+
+def test_verified_wheel_fallback_handles_projects_without_ejs():
+    assert ytdlp_updater._required_ejs_version({"info": {"requires_dist": []}}) is None
 
 
 def test_browser_url_accepts_urls_and_builds_google_search():
@@ -462,6 +564,11 @@ def test_ytdlp_update_check_reports_installed_and_latest(monkeypatch):
 
     monkeypatch.setattr(ytdlp_updater, "installed_ytdlp_version", lambda: "2026.3.17")
     monkeypatch.setattr(ytdlp_updater.urllib.request, "urlopen", lambda *args, **kwargs: Response())
+    monkeypatch.setattr(
+        ytdlp_updater,
+        "youtube_support_status",
+        lambda: {"ejs_installed": True, "js_runtime": "node", "ready": True, "status": "ready"},
+    )
 
     result = ytdlp_updater.check_ytdlp_update()
 
@@ -469,6 +576,7 @@ def test_ytdlp_update_check_reports_installed_and_latest(monkeypatch):
         "current_version": "2026.3.17",
         "latest_version": "2026.8.19",
         "update_available": True,
+        "support": {"ejs_installed": True, "js_runtime": "node", "ready": True, "status": "ready"},
     }
 
 

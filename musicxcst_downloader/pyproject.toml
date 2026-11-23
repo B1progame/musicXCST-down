@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "musicxcst-downloader"
-version = "5.0.4"
+version = "5.1.0"
 description = "A private, modern desktop downloader for legally permitted music and audio."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "B1progame" }]
 dependencies = [
   "pywebview>=5.4",
-  "yt-dlp>=2026.1.1",
+  "yt-dlp[default]>=2026.1.1",
 ]
 
 [project.optional-dependencies]

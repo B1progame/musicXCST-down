@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 from yt_dlp import YoutubeDL
 
 from .ffmpeg import probe
+from .ytdlp_runtime import available_js_runtime
 
 LOGGER = logging.getLogger(__name__)
 ProgressCallback = Callable[[dict], None]
@@ -34,6 +35,44 @@ BROWSER_PROCESS_NAMES = {
     "opera": "opera.exe",
     "vivaldi": "vivaldi.exe",
 }
+AUTH_REQUIRED_PATTERN = re.compile(
+    r"sign[ -]?in|log[ -]?in|authentication required|confirm your age|age.?restricted|"
+    r"members.?only|private video|cookies? required|account verification",
+    re.IGNORECASE,
+)
+
+
+def _should_retry_with_cookies(error: Exception) -> bool:
+    """Only access cookies for errors that indicate an authenticated session may help."""
+    return bool(AUTH_REQUIRED_PATTERN.search(str(error)))
+
+
+def _analysis_error(first_error: Exception, failures: list[str]) -> RuntimeError:
+    retry_detail = f" Cookie retries: {'; '.join(failures)}." if failures else ""
+    return RuntimeError(f"{first_error}{retry_detail}")
+
+
+def _js_runtime_options() -> dict:
+    """Tell yt-dlp about an available JS engine; Node is not enabled by default."""
+    runtime = available_js_runtime()
+    if runtime:
+        name, executable = runtime
+        return {"js_runtimes": {name: {"path": executable}}}
+    return {}
+
+
+class _YtDlpLogger:
+    def __init__(self) -> None:
+        self.errors: list[str] = []
+
+    def debug(self, _message: str) -> None:
+        pass
+
+    def warning(self, _message: str) -> None:
+        pass
+
+    def error(self, message: str) -> None:
+        self.errors.append(str(message))
 
 
 def _browser_roots(browser: str) -> tuple[Path, ...]:
@@ -250,14 +289,14 @@ def analyze_url(url: str, max_duration_warning_minutes: int = 60, use_browser_co
         "skip_download": True,
         "noplaylist": True,
         "extract_flat": False,
+        **_js_runtime_options(),
     }
     try:
         with YoutubeDL(options) as ydl:
             info = ydl.extract_info(url, download=False)
     except Exception as first_error:
-        if not use_browser_cookies and not cookie_file_path:
+        if not _should_retry_with_cookies(first_error):
             raise
-        last_error = first_error
         failures = []
         cookie_file = str(cookie_file_path or "").strip()
         cookie_file_succeeded = False
@@ -266,7 +305,6 @@ def analyze_url(url: str, max_duration_warning_minutes: int = 60, use_browser_co
                 with YoutubeDL(_with_cookie_file(options, cookie_file)) as ydl:
                     info = ydl.extract_info(url, download=False)
             except Exception as cookie_file_error:
-                last_error = cookie_file_error
                 failures.append(f"cookie file: {cookie_file_error}")
             else:
                 cookie_file_succeeded = True
@@ -286,14 +324,13 @@ def analyze_url(url: str, max_duration_warning_minutes: int = 60, use_browser_co
                         info = ydl.extract_info(url, download=False)
                     break
                 except Exception as cookie_error:
-                    last_error = cookie_error
                     failures.append(f"{label}: {cookie_error}")
                     LOGGER.debug("Browser cookie analysis retry failed for %s", browser, exc_info=True)
             else:
                 if cookie_file and not Path(cookie_file).is_file():
-                    failures.append(f"cookie file: file not found: {cookie_file}")
+                    failures.append(f"cookie file not found: {cookie_file}")
                 if failures or not cookie_file:
-                    raise RuntimeError(f"{last_error} Cookie attempts: {'; '.join(failures) or 'none detected'}.") from first_error
+                    raise _analysis_error(first_error, failures) from first_error
     formats = info.get("formats") or []
     audio_formats = [f for f in formats if f.get("acodec") not in (None, "none")]
     video_formats = [f for f in formats if f.get("vcodec") not in (None, "none")]
@@ -482,6 +519,8 @@ class DownloadWorker:
             "postprocessors": [],
             "postprocessor_args": [],
             "keepvideo": mode == "video",
+            "logger": _YtDlpLogger(),
+            **_js_runtime_options(),
         }
         if mode == "audio":
             options["postprocessors"].append(
@@ -500,20 +539,25 @@ class DownloadWorker:
         self.progress({"type": "progress", "percent": 0, "status": "Starting download...", "stage": "Starting"})
         try:
             with YoutubeDL(options) as ydl:
-                ydl.download([url])
+                return_code = ydl.download([url])
+                if return_code:
+                    errors = options["logger"].errors
+                    detail = errors[-1] if errors else f"yt-dlp exited with code {return_code}"
+                    raise RuntimeError(detail)
         except Exception as first_error:
-            if not request.get("use_browser_cookies"):
-                raise
-            last_error = first_error
-            failures = []
             cookie_file = str(request.get("cookie_file_path") or "").strip()
+            if (
+                (not request.get("use_browser_cookies") and not cookie_file)
+                or not _should_retry_with_cookies(first_error)
+            ):
+                raise
+            failures = []
             cookie_file_succeeded = False
             if cookie_file and Path(cookie_file).is_file():
                 try:
                     with YoutubeDL(_with_cookie_file(options, cookie_file)) as ydl:
                         ydl.download([url])
                 except Exception as cookie_file_error:
-                    last_error = cookie_file_error
                     failures.append(f"cookie file: {cookie_file_error}")
                 else:
                     cookie_file_succeeded = True
@@ -532,14 +576,13 @@ class DownloadWorker:
                             ydl.download([url])
                         break
                     except Exception as cookie_error:
-                        last_error = cookie_error
                         failures.append(f"{label}: {cookie_error}")
                         LOGGER.debug("Browser cookie download retry failed for %s", browser, exc_info=True)
                 else:
                     if cookie_file and not Path(cookie_file).is_file():
                         failures.append(f"cookie file: file not found: {cookie_file}")
                     if failures or not cookie_file:
-                        raise RuntimeError(f"{last_error} Cookie attempts: {'; '.join(failures) or 'none detected'}.") from first_error
+                        raise _analysis_error(first_error, failures) from first_error
         self.progress(
             {
                 "type": "complete",

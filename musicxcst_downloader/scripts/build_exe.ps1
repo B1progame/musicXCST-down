@@ -62,6 +62,7 @@ Invoke-Checked { & $PyInstaller `
     --icon $Icon `
     --add-data $AddData `
     --collect-all webview `
+    --collect-all yt_dlp_ejs `
     --paths "src" `
     "src\run_musicxcst_downloader.py" } "PyInstaller build"
 
